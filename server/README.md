@@ -1,265 +1,279 @@
-# Central Messenger Client
+# Central Messenger Server
 
-Ez a dokumentáció a Windowsos kliensalkalmazások telepítését, konfigurációját, buildelését és automatikus indulását írja le.
+Ez a dokumentáció a központi Linux szerver telepítését, konfigurálását és automatikus indítását írja le.
 
-A kliensoldalon két alkalmazás van:
-- `receiver_client.py` – végfelhasználói fogadó kliens
-- `admin_client.py` – rendszergazdai kliens, amely küldeni és fogadni is tud
+A szerver feladata:
+- a kliensek WebSocket kapcsolatait kezelni,
+- nyilvántartani az ismert gépeket,
+- online/offline státuszt követni,
+- az üzeneteket MySQL adatbázisban tárolni,
+- az offline gépeknek szánt üzeneteket sorban tartani,
+- az admin kliens számára API-t biztosítani.
 
-## Fő funkciók
+## Követelmények
 
-### Receiver kliens
-- a háttérben csatlakozik a szerverhez
-- online státuszt küld
-- fogadja az új üzeneteket
-- gépenként külön chateket mutat
-- fontos üzenetnél kiemelt figyelmeztetés jelenik meg
-- olvasatlan fontos üzenetnél 10 percenként ismételt popup értesítés
+- Linux szerver
+- Python 3.11 vagy újabb
+- MySQL 8 vagy MariaDB
+- systemd
+- hálózati elérés a választott szerverporton, például `8080`
 
-### Admin kliens
-- a szerverről ismert gépekből lehet választani
-- keresőmezővel szűrhető a géplista
-- küldés egy vagy több gépnek
-- saját maga is fogad üzenetet
-- gépekhez tulajdonos és megjegyzés rendelhető
-- törölhető vagy inaktiválható az elavult gép
-
-## Ajánlott fájlstruktúra
+## Ajánlott szerverstruktúra
 
 ```text
-client/
+server/
 ├─ README.md
-├─ common.py
-├─ admin_client.py
-├─ receiver_client.py
-└─ assets/
-   └─ app.ico
+├─ main.py
+├─ db.py
+├─ models.py
+├─ schemas.py
+└─ .env
 ```
 
-## Kliens oldali függőségek
+## Függőségek
 
-Ajánlott `requirements-client.txt`:
+A szerverhez ajánlott `requirements-server.txt` tartalma:
 
 ```txt
-PySide6
-websocket-client
-requests
-pyinstaller
+fastapi
+uvicorn[standard]
+sqlalchemy
+pymysql
+pydantic
+python-dotenv
 ```
 
-Telepítés virtuális környezetbe:
+Telepítés virtuális környezetben:
 
-### PowerShell
-
-```powershell
-cd C:\central_messenger
-python -m venv .venv
-.venv\Scripts\activate
-python -m pip install --upgrade pip
-pip install -r requirements-client.txt
+```bash
+cd /opt/central_messenger
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements-server.txt
 ```
 
 Ha kézzel telepíted a modulokat:
 
-```powershell
-pip install PySide6 websocket-client requests pyinstaller
+```bash
+pip install fastapi "uvicorn[standard]" sqlalchemy pymysql pydantic python-dotenv
 ```
 
-## Kliens konfiguráció
+## Linux rendszercsomagok telepítése
 
-A `client/common.py` fájlban állítsd be a szerver címét:
-
-```python
-SERVER_HTTP = "http://192.168.1.10:8080"
-SERVER_WS = "ws://192.168.1.10:8080/ws/client"
-```
-
-HTTPS / WSS esetén:
-
-```python
-SERVER_HTTP = "https://messenger.example.local"
-SERVER_WS = "wss://messenger.example.local/ws/client"
-```
-
-## Futtatás fejlesztői módban
-
-Receiver kliens:
-
-```powershell
-cd C:\central_messenger
-.venv\Scripts\activate
-python client\receiver_client.py
-```
-
-Admin kliens:
-
-```powershell
-cd C:\central_messenger
-.venv\Scripts\activate
-python client\admin_client.py
-```
-
-## EXE build
-
-A felhasználóknak jellemzően EXE-t érdemes teríteni.
-
-Receiver kliens build:
-
-```powershell
-pyinstaller --noconfirm --onefile --windowed client\receiver_client.py
-```
-
-Admin kliens build:
-
-```powershell
-pyinstaller --noconfirm --onefile --windowed client\admin_client.py
-```
-
-Ikonnal:
-
-```powershell
-pyinstaller --noconfirm --onefile --windowed --icon client\assets\app.ico client\receiver_client.py
-pyinstaller --noconfirm --onefile --windowed --icon client\assets\app.ico client\admin_client.py
-```
-
-A buildelt fájlok a `dist\` mappába kerülnek.
-
-## Automatikus indulás Windowson
-
-A fogadó kliens tipikusan automatikusan induljon a Windows bejelentkezéskor.
-
-### Egyszerű módszer: Startup mappa
-
-Nyisd meg a Startup mappát:
-
-```text
-Win + R
-shell:startup
-```
-
-Ezután hozz létre ide egy parancsikont a buildelt `receiver_client.exe` fájlhoz, például:
-
-```text
-C:\central_messenger\dist\receiver_client.exe
-```
-
-Így a fogadó kliens automatikusan elindul minden bejelentkezéskor.
-
-### Stabilabb módszer: Feladatütemező
-
-A Windows Task Scheduler használható, ha megbízhatóbb indítást szeretnél.
-
-Általános beállítás:
-- Trigger: bejelentkezéskor
-- Action: a `receiver_client.exe` futtatása
-- Szükség esetén: `Run with highest privileges`
-
-## Linux kliens automatikus indulás példája
-
-Ha később Linux kliensre is szükség lenne, grafikus környezetben készíthető autostart fájl.
-
-Mappa létrehozása:
+Ubuntu vagy Debian alapú rendszeren:
 
 ```bash
-mkdir -p ~/.config/autostart
+sudo apt update
+sudo apt install -y python3 python3-venv python3-pip mysql-server
 ```
 
-Autostart fájl:
+MariaDB használata esetén:
 
 ```bash
-nano ~/.config/autostart/central-receiver.desktop
+sudo apt update
+sudo apt install -y python3 python3-venv python3-pip mariadb-server
 ```
 
-Tartalom:
+## Projektmappa létrehozása
+
+```bash
+sudo mkdir -p /opt/central_messenger
+sudo chown $USER:$USER /opt/central_messenger
+cd /opt/central_messenger
+```
+
+Git használata esetén:
+
+```bash
+git clone https://github.com/SAJAT_FELHASZNALO/central_messenger.git /opt/central_messenger
+cd /opt/central_messenger
+```
+
+## MySQL adatbázis létrehozása
+
+Jelentkezz be MySQL-be:
+
+```bash
+sudo mysql -u root -p
+```
+
+Majd hozd létre az adatbázist és a felhasználót:
+
+```sql
+CREATE DATABASE messenger_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+CREATE USER 'messenger_user'@'localhost' IDENTIFIED BY 'EROS_JELSZO';
+GRANT ALL PRIVILEGES ON messenger_db.* TO 'messenger_user'@'localhost';
+FLUSH PRIVILEGES;
+EXIT;
+```
+
+## Környezeti változók
+
+Hozz létre egy `server/.env` fájlt:
+
+```env
+DATABASE_URL=mysql+pymysql://messenger_user:EROS_JELSZO@127.0.0.1/messenger_db?charset=utf8mb4
+SERVER_HOST=0.0.0.0
+SERVER_PORT=8080
+```
+
+## Kézi indítás fejlesztéshez
+
+```bash
+cd /opt/central_messenger/server
+source ../.venv/bin/activate
+uvicorn main:app --host 0.0.0.0 --port 8080 --reload
+```
+
+## Kézi indítás élesebb futtatáshoz
+
+```bash
+cd /opt/central_messenger/server
+source ../.venv/bin/activate
+uvicorn main:app --host 0.0.0.0 --port 8080
+```
+
+## Automatikus indulás Linuxon systemd-vel
+
+Hozz létre egy service fájlt:
+
+```bash
+sudo nano /etc/systemd/system/central-messenger.service
+```
+
+A fájl tartalma:
 
 ```ini
-[Desktop Entry]
-Type=Application
-Name=Central Receiver
-Exec=/opt/central_messenger/client/start_receiver.sh
-X-GNOME-Autostart-enabled=true
+[Unit]
+Description=Central Messenger Server
+After=network.target mysql.service mariadb.service
+Wants=network.target
+
+[Service]
+Type=simple
+User=YOUR_USERNAME
+WorkingDirectory=/opt/central_messenger/server
+Environment="PATH=/opt/central_messenger/.venv/bin"
+ExecStart=/opt/central_messenger/.venv/bin/uvicorn main:app --host 0.0.0.0 --port 8080
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
 ```
 
-Indító script:
+A service aktiválása és kezelése:
 
 ```bash
-nano /opt/central_messenger/client/start_receiver.sh
+sudo systemctl daemon-reload
+sudo systemctl enable central-messenger.service
+sudo systemctl start central-messenger.service
+sudo systemctl restart central-messenger.service
+sudo systemctl status central-messenger.service
+journalctl -u central-messenger.service -f
 ```
 
-Tartalom:
+## Tűzfal beállítása
+
+Ha UFW fut a szerveren:
 
 ```bash
-#!/bin/bash
-cd /opt/central_messenger/client
-source ../.venv/bin/activate
-python receiver_client.py
+sudo ufw allow 8080/tcp
+sudo ufw reload
+sudo ufw status
 ```
 
-Futtathatóvá tétel:
+## Opcionális Nginx reverse proxy
+
+Nginx telepítése:
 
 ```bash
-chmod +x /opt/central_messenger/client/start_receiver.sh
+sudo apt install -y nginx
 ```
 
-## Kliensellenőrzés
+Konfiguráció létrehozása:
 
-Indítás után ellenőrizd:
-- elindul-e a kliens,
-- felcsatlakozik-e a szerverre,
-- megjelenik-e online gépként az admin oldalon,
-- fogad-e üzenetet,
-- fontos üzenetnél megjelenik-e a popup,
-- olvasatlan fontos üzenetnél ismétlődik-e az értesítés.
-
-## Gyakori hibák
-
-### Nem csatlakozik a kliens
-Ellenőrizd:
-- helyes-e a `SERVER_HTTP`,
-- helyes-e a `SERVER_WS`,
-- elérhető-e a szerver hálózaton,
-- nyitva van-e a szerver portja,
-- nincs-e tűzfal tiltás.
-
-### Nem indul az EXE
-Ellenőrizd:
-- a build sikeres volt-e,
-- a `dist` mappában létrejött-e a fájl,
-- a vírusirtó nem blokkolja-e,
-- kézzel elindítható-e.
-
-### Nem indul automatikusan
-Ellenőrizd:
-- a Startup mappába tényleg parancsikon került-e,
-- jó fájlra mutat-e,
-- a felhasználó bejelentkezik-e ugyanabba a profilba,
-- a Feladatütemezőben nincs-e hibás útvonal.
-
-## Gyors fejlesztői parancsok
-
-Receiver:
-
-```powershell
-cd C:\central_messenger
-.venv\Scripts\activate
-python client\receiver_client.py
+```bash
+sudo nano /etc/nginx/sites-available/central-messenger
 ```
 
-Admin:
+Példa tartalom:
 
-```powershell
-cd C:\central_messenger
-.venv\Scripts\activate
-python client\admin_client.py
+```nginx
+server {
+    listen 80;
+    server_name messenger.example.local;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+
+        proxy_set_header Host $host;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
 ```
 
-Build mindkettőre:
+Bekapcsolás:
 
-```powershell
-pyinstaller --noconfirm --onefile --windowed client\receiver_client.py
-pyinstaller --noconfirm --onefile --windowed client\admin_client.py
+```bash
+sudo ln -s /etc/nginx/sites-available/central-messenger /etc/nginx/sites-enabled/central-messenger
+sudo nginx -t
+sudo systemctl restart nginx
 ```
 
-## Megjegyzés
+## Gyors ellenőrzések
 
-A kliensoldali telepítés és futtatás szándékosan külön van választva a szerver dokumentációjától, hogy a két környezet önállóan is karbantartható legyen.
+A szerver indulásának ellenőrzése:
+
+```bash
+sudo systemctl status central-messenger.service
+journalctl -u central-messenger.service -f
+```
+
+FastAPI docs elérésének ellenőrzése:
+
+```bash
+curl http://127.0.0.1:8080/docs
+```
+
+vagy távolról:
+
+```bash
+curl http://SERVER_IP:8080/docs
+```
+
+## Mentés és visszaállítás
+
+Mentés:
+
+```bash
+mysqldump -u messenger_user -p messenger_db > messenger_backup.sql
+```
+
+Visszaállítás:
+
+```bash
+mysql -u messenger_user -p messenger_db < messenger_backup.sql
+```
+
+## Frissítés
+
+```bash
+cd /opt/central_messenger
+git pull
+source .venv/bin/activate
+pip install -r requirements-server.txt
+sudo systemctl restart central-messenger.service
+```
+
+## Megjegyzések
+
+- Éles környezetben ajánlott HTTPS / WSS használata.
+- Érdemes később klienshitelesítést vagy tokenes védelmet beépíteni.
+- A rendszer belső hálózatra készült, de reverse proxyval és TLS-sel biztonságosabbá tehető.
