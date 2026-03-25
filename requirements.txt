@@ -9,3 +9,4 @@ python-multipart
 PySide6
 websocket-client
 requests
+dotenv
