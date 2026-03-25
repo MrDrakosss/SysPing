@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ settings.app_name }} - Web Admin Login</title>
+    <style>
+        :root {
+            --primary: {{ settings.primary_color or '#2563eb' }};
+            --secondary: {{ settings.secondary_color or '#1e293b' }};
+            --bg: #eef2f7;
+            --card: white;
+            --text: #111827;
+            --muted: #6b7280;
+            --danger: #dc2626;
+            --border: #dbe3ee;
+        }
+
+        body {
+            margin: 0;
+            background: linear-gradient(135deg, var(--secondary), #0f172a);
+            font-family: "Segoe UI", Arial, sans-serif;
+            color: var(--text);
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 20px;
+        }
+
+        .card {
+            width: 100%;
+            max-width: 430px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.20);
+        }
+
+        .logo-wrap {
+            text-align: center;
+            margin-bottom: 18px;
+        }
+
+        .logo-wrap img {
+            max-width: 96px;
+            max-height: 96px;
+            object-fit: contain;
+            display: inline-block;
+            margin-bottom: 12px;
+        }
+
+        .title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            text-align: center;
+        }
+
+        .subtitle {
+            color: var(--muted);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .field {
+            margin-bottom: 14px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        input {
+            width: 100%;
+            padding: 11px 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        button {
+            width: 100%;
+            border: none;
+            border-radius: 10px;
+            padding: 12px;
+            background: var(--primary);
+            color: white;
+            font-weight: 700;
+            font-size: 15px;
+            cursor: pointer;
+        }
+
+        .error {
+            background: #fef2f2;
+            color: var(--danger);
+            border: 1px solid #fecaca;
+            border-radius: 10px;
+            padding: 10px 12px;
+            margin-bottom: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="logo-wrap">
+            {% if settings.login_logo_path %}
+                <img src="{{ settings.login_logo_path }}" alt="Logo">
+            {% elif settings.app_icon_path %}
+                <img src="{{ settings.app_icon_path }}" alt="Icon">
+            {% endif %}
+        </div>
+
+        <div class="title">{{ settings.app_name }}</div>
+        <div class="subtitle">{{ settings.company_name or 'Web Admin bejelentkezés' }}</div>
+
+        {% if error %}
+        <div class="error">{{ error }}</div>
+        {% endif %}
+
+        <form method="post" action="/webadmin/login">
+            <div class="field">
+                <label for="username">Felhasználónév</label>
+                <input id="username" name="username" type="text" required>
+            </div>
+
+            <div class="field">
+                <label for="password">Jelszó</label>
+                <input id="password" name="password" type="password" required>
+            </div>
+
+            <button type="submit">Belépés</button>
+        </form>
+    </div>
+</body>
+</html>

@@ -19,14 +19,13 @@ from schemas import (
     DeviceUpdate,
     SendMessageIn,
 )
-from services.devices import list_devices, soft_delete_device, update_device
+from services.devices import list_devices, restore_device, soft_delete_device, update_device
 from services.messages import create_message
 from services.settings import get_settings, update_settings
 from services.users import create_admin_user, list_admin_users, update_admin_user
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
-# machine_name -> websocket
 online_clients = {}
 
 
@@ -73,6 +72,21 @@ def admin_delete_device(
     require_manage_devices(user)
 
     ok = soft_delete_device(db, device_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Gép nem található")
+    return {"ok": True}
+
+
+@router.post("/devices/{device_id}/restore")
+def admin_restore_device(
+    device_id: int,
+    token: str = Depends(require_token_header),
+    db: Session = Depends(get_db),
+):
+    user = require_admin_user(db, token)
+    require_manage_devices(user)
+
+    ok = restore_device(db, device_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Gép nem található")
     return {"ok": True}

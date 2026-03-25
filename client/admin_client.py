@@ -25,13 +25,22 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QSplitter,
+    QTabWidget,
     QTextBrowser,
     QTextEdit,
     QVBoxLayout,
     QWidget,
 )
 
-from common import MACHINE_NAME, SERVER_HTTP, SERVER_WS
+from common import (
+    MACHINE_NAME,
+    SERVER_HTTP,
+    SERVER_WS,
+    clear_admin_token,
+    fetch_branding,
+    load_admin_token,
+    save_admin_token,
+)
 
 
 def http_json(path: str, method: str = "GET", payload: dict | None = None, token: str | None = None):
@@ -113,7 +122,8 @@ class ServerListenerThread(threading.Thread):
 class LoginDialog(QDialog):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("SysPing Admin Login")
+        self.branding = fetch_branding()
+        self.setWindowTitle(f"{self.branding.get('app_name', 'SysPing')} Admin Login")
         self.resize(380, 180)
         self.token = None
         self.user = None
@@ -149,6 +159,7 @@ class LoginDialog(QDialog):
             })
             self.token = result["token"]
             self.user = result["user"]
+            save_admin_token(self.token, self.user)
             self.accept()
         except Exception as e:
             QMessageBox.critical(self, "Belépési hiba", str(e))
@@ -159,9 +170,10 @@ class AdminChatWindow(QMainWindow):
         super().__init__()
         self.token = token
         self.user_info = user_info
+        self.branding = fetch_branding()
 
-        self.setWindowTitle(f"SysPing Admin - {user_info['username']} - {MACHINE_NAME}")
-        self.resize(1450, 800)
+        self.setWindowTitle(f"{self.branding.get('app_name', 'SysPing')} Admin - {user_info['username']} - {MACHINE_NAME}")
+        self.resize(1500, 850)
 
         self.devices = []
         self.chats = {}
@@ -178,82 +190,38 @@ class AdminChatWindow(QMainWindow):
         self.build_ui()
         self.refresh_devices()
         self.refresh_chat_list()
+        self.load_settings()
 
     def build_ui(self):
-        self.chat_list = QListWidget()
-        self.chat_list.currentItemChanged.connect(self.on_chat_selected)
+        self.tabs = QTabWidget()
 
-        self.chat_view = QTextBrowser()
+        self.tab_chat = QWidget()
+        self.tab_settings = QWidget()
 
-        self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Keresés gépnévre, tulajdonosra, megjegyzésre...")
-        self.search_input.textChanged.connect(self.refresh_devices)
+        self.build_chat_tab()
+        self.build_settings_tab()
 
-        self.device_list = QListWidget()
-        self.device_list.setSelectionMode(QAbstractItemView.MultiSelection)
+        self.tabs.addTab(self.tab_chat, "Chat")
+        self.tabs.addTab(self.tab_settings, "Beállítások")
 
-        self.message_input = QTextEdit()
-        self.message_input.setPlaceholderText("Írd ide az üzenetet...")
+        root = QWidget()
+        root_layout = QVBoxLayout(root)
 
-        self.important_checkbox = QCheckBox("Fontos üzenet")
-
-        self.send_btn = QPushButton("Küldés a kijelölt gépeknek")
-        self.send_btn.clicked.connect(self.send_to_selected_devices)
-
-        self.use_chat_btn = QPushButton("Aktív chat kijelölése")
-        self.use_chat_btn.clicked.connect(self.use_current_chat_target)
-
+        top_bar = QHBoxLayout()
         self.connection_label = QLabel("Kapcsolat: csatlakozás...")
+        self.logout_btn = QPushButton("Kijelentkezés")
+        self.logout_btn.clicked.connect(self.logout)
+        top_bar.addWidget(self.connection_label)
+        top_bar.addStretch()
+        top_bar.addWidget(self.logout_btn)
 
-        self.device_name_input = QLineEdit()
-        self.display_name_input = QLineEdit()
-        self.owner_input = QLineEdit()
-        self.note_input = QTextEdit()
-        self.note_input.setFixedHeight(100)
-
-        self.save_device_btn = QPushButton("Eszköz mentése")
-        self.save_device_btn.clicked.connect(self.save_selected_device)
-
-        left_box = QGroupBox("Chat-ek")
-        left_layout = QVBoxLayout(left_box)
-        left_layout.addWidget(self.chat_list)
-
-        center_box = QGroupBox("Beszélgetés")
-        center_layout = QVBoxLayout(center_box)
-        center_layout.addWidget(self.connection_label)
-        center_layout.addWidget(self.chat_view)
-
-        right_box = QGroupBox("Eszközök és küldés")
-        right_layout = QVBoxLayout(right_box)
-        right_layout.addWidget(self.search_input)
-        right_layout.addWidget(self.device_list)
-        right_layout.addWidget(self.use_chat_btn)
-        right_layout.addWidget(self.important_checkbox)
-        right_layout.addWidget(self.message_input)
-        right_layout.addWidget(self.send_btn)
-
-        meta_box = QGroupBox("Kiválasztott eszköz adatai")
-        meta_form = QFormLayout(meta_box)
-        meta_form.addRow("Gépnév:", self.device_name_input)
-        meta_form.addRow("Megjelenített név:", self.display_name_input)
-        meta_form.addRow("Tulajdonos:", self.owner_input)
-        meta_form.addRow("Megjegyzés:", self.note_input)
-        meta_form.addRow("", self.save_device_btn)
-
-        right_layout.addWidget(meta_box)
-
-        self.device_list.itemSelectionChanged.connect(self.load_selected_device_meta)
-
-        splitter = QSplitter()
-        splitter.addWidget(left_box)
-        splitter.addWidget(center_box)
-        splitter.addWidget(right_box)
-        splitter.setSizes([260, 620, 460])
-        self.setCentralWidget(splitter)
+        root_layout.addLayout(top_bar)
+        root_layout.addWidget(self.tabs)
+        self.setCentralWidget(root)
 
         self.setStyleSheet("""
             QMainWindow { background: #eef2f7; }
-            QListWidget, QTextBrowser, QLineEdit, QTextEdit {
+            QListWidget, QTextBrowser, QLineEdit, QTextEdit, QTabWidget::pane {
                 background: white;
                 border: 1px solid #d0d5dd;
                 border-radius: 10px;
@@ -280,6 +248,115 @@ class AdminChatWindow(QMainWindow):
         """)
 
         self.setWindowIcon(self.create_icon())
+
+    def build_chat_tab(self):
+        layout = QVBoxLayout(self.tab_chat)
+
+        self.chat_list = QListWidget()
+        self.chat_list.currentItemChanged.connect(self.on_chat_selected)
+
+        self.chat_view = QTextBrowser()
+
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Keresés gépnévre, tulajdonosra, megjegyzésre...")
+        self.search_input.textChanged.connect(self.refresh_devices)
+
+        self.device_list = QListWidget()
+        self.device_list.setSelectionMode(QAbstractItemView.MultiSelection)
+
+        self.message_input = QTextEdit()
+        self.message_input.setPlaceholderText("Írd ide az üzenetet...")
+
+        self.important_checkbox = QCheckBox("Fontos üzenet")
+
+        self.send_btn = QPushButton("Küldés a kijelölt gépeknek")
+        self.send_btn.clicked.connect(self.send_to_selected_devices)
+
+        self.use_chat_btn = QPushButton("Aktív chat kijelölése")
+        self.use_chat_btn.clicked.connect(self.use_current_chat_target)
+
+        self.device_name_input = QLineEdit()
+        self.display_name_input = QLineEdit()
+        self.owner_input = QLineEdit()
+        self.note_input = QTextEdit()
+        self.note_input.setFixedHeight(100)
+
+        self.save_device_btn = QPushButton("Eszköz mentése")
+        self.save_device_btn.clicked.connect(self.save_selected_device)
+
+        self.delete_device_btn = QPushButton("Eszköz archiválása")
+        self.delete_device_btn.clicked.connect(self.archive_selected_device)
+        self.delete_device_btn.setStyleSheet("background:#dc2626; color:white; border:none; border-radius:10px; padding:10px 14px; font-weight:bold;")
+
+        left_box = QGroupBox("Chat-ek")
+        left_layout = QVBoxLayout(left_box)
+        left_layout.addWidget(self.chat_list)
+
+        center_box = QGroupBox("Beszélgetés")
+        center_layout = QVBoxLayout(center_box)
+        center_layout.addWidget(self.chat_view)
+
+        right_box = QGroupBox("Eszközök és küldés")
+        right_layout = QVBoxLayout(right_box)
+        right_layout.addWidget(self.search_input)
+        right_layout.addWidget(self.device_list)
+        right_layout.addWidget(self.use_chat_btn)
+        right_layout.addWidget(self.important_checkbox)
+        right_layout.addWidget(self.message_input)
+        right_layout.addWidget(self.send_btn)
+
+        meta_box = QGroupBox("Kiválasztott eszköz adatai")
+        meta_form = QFormLayout(meta_box)
+        meta_form.addRow("Gépnév:", self.device_name_input)
+        meta_form.addRow("Megjelenített név:", self.display_name_input)
+        meta_form.addRow("Tulajdonos:", self.owner_input)
+        meta_form.addRow("Megjegyzés:", self.note_input)
+
+        btns = QHBoxLayout()
+        btns.addWidget(self.save_device_btn)
+        btns.addWidget(self.delete_device_btn)
+        meta_form.addRow("", btns)
+
+        right_layout.addWidget(meta_box)
+
+        self.device_list.itemSelectionChanged.connect(self.load_selected_device_meta)
+
+        splitter = QSplitter()
+        splitter.addWidget(left_box)
+        splitter.addWidget(center_box)
+        splitter.addWidget(right_box)
+        splitter.setSizes([260, 620, 460])
+
+        layout.addWidget(splitter)
+
+    def build_settings_tab(self):
+        layout = QVBoxLayout(self.tab_settings)
+
+        settings_box = QGroupBox("Branding és szerver beállítások")
+        form = QFormLayout(settings_box)
+
+        self.settings_app_name = QLineEdit()
+        self.settings_company_name = QLineEdit()
+        self.settings_app_icon_path = QLineEdit()
+        self.settings_login_logo_path = QLineEdit()
+        self.settings_primary_color = QLineEdit()
+        self.settings_secondary_color = QLineEdit()
+        self.settings_web_admin_enabled = QCheckBox("Web admin engedélyezése")
+
+        form.addRow("Program neve:", self.settings_app_name)
+        form.addRow("Cég neve:", self.settings_company_name)
+        form.addRow("App ikon útvonal:", self.settings_app_icon_path)
+        form.addRow("Login logó útvonal:", self.settings_login_logo_path)
+        form.addRow("Elsődleges szín:", self.settings_primary_color)
+        form.addRow("Másodlagos szín:", self.settings_secondary_color)
+        form.addRow("", self.settings_web_admin_enabled)
+
+        self.save_settings_btn = QPushButton("Beállítások mentése")
+        self.save_settings_btn.clicked.connect(self.save_settings)
+        form.addRow("", self.save_settings_btn)
+
+        layout.addWidget(settings_box)
+        layout.addStretch()
 
     def create_icon(self) -> QIcon:
         pixmap = QPixmap(64, 64)
@@ -557,6 +634,62 @@ class AdminChatWindow(QMainWindow):
         except Exception as e:
             QMessageBox.warning(self, "Mentési hiba", str(e))
 
+    def archive_selected_device(self):
+        selected = self.selected_devices()
+        if len(selected) != 1:
+            QMessageBox.information(self, "Hiba", "Pontosan egy eszközt válassz.")
+            return
+
+        device = selected[0]
+        try:
+            http_json(f"/admin/devices/{device['id']}", method="DELETE", token=self.token)
+            self.refresh_devices()
+            QMessageBox.information(self, "Archiválás", "Az eszköz archiválva lett.")
+        except Exception as e:
+            QMessageBox.warning(self, "Archiválási hiba", str(e))
+
+    def load_settings(self):
+        try:
+            settings = http_json("/admin/settings", method="GET", token=self.token)
+            self.settings_app_name.setText(settings.get("app_name", ""))
+            self.settings_company_name.setText(settings.get("company_name", ""))
+            self.settings_app_icon_path.setText(settings.get("app_icon_path", ""))
+            self.settings_login_logo_path.setText(settings.get("login_logo_path", ""))
+            self.settings_primary_color.setText(settings.get("primary_color", ""))
+            self.settings_secondary_color.setText(settings.get("secondary_color", ""))
+            self.settings_web_admin_enabled.setChecked(settings.get("web_admin_enabled", False))
+        except Exception:
+            pass
+
+    def save_settings(self):
+        try:
+            http_json(
+                "/admin/settings",
+                method="PATCH",
+                payload={
+                    "app_name": self.settings_app_name.text().strip(),
+                    "company_name": self.settings_company_name.text().strip(),
+                    "app_icon_path": self.settings_app_icon_path.text().strip(),
+                    "login_logo_path": self.settings_login_logo_path.text().strip(),
+                    "primary_color": self.settings_primary_color.text().strip(),
+                    "secondary_color": self.settings_secondary_color.text().strip(),
+                    "web_admin_enabled": self.settings_web_admin_enabled.isChecked(),
+                },
+                token=self.token,
+            )
+            QMessageBox.information(self, "Mentés", "Beállítások frissítve.")
+        except Exception as e:
+            QMessageBox.warning(self, "Mentési hiba", str(e))
+
+    def logout(self):
+        try:
+            http_json("/auth/logout", method="POST", token=self.token)
+        except Exception:
+            pass
+        clear_admin_token()
+        self.server_thread.stop()
+        self.close()
+
     def closeEvent(self, event):
         self.server_thread.stop()
         event.accept()
@@ -572,6 +705,17 @@ class AdminChatWindow(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+
+    token, user = load_admin_token()
+
+    if token and user:
+        try:
+            http_json("/auth/me", method="GET", token=token)
+            window = AdminChatWindow(token, user)
+            window.show()
+            sys.exit(app.exec())
+        except Exception:
+            clear_admin_token()
 
     login = LoginDialog()
     if login.exec() != QDialog.Accepted:

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block page_title %}Eszközök{% endblock %}
+{% block page_subtitle %}Ismert gépek listája és metaadataik kezelése{% endblock %}
+
+{% block content %}
+<div class="card">
+    <form method="get" action="/webadmin/devices" class="toolbar">
+        <input type="text" name="search" value="{{ search }}" placeholder="Keresés gépnévre, tulajdonosra, megjegyzésre...">
+        <label style="display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" name="include_deleted" value="true" {% if include_deleted %}checked{% endif %}>
+            Archiváltak is
+        </label>
+        <button type="submit">Keresés</button>
+    </form>
+</div>
+
+<div class="card">
+    <div class="section-title">Ismert gépek</div>
+    <table>
+        <thead>
+            <tr>
+                <th>Gépnév</th>
+                <th>Megjelenített név</th>
+                <th>Tulajdonos</th>
+                <th>Megjegyzés</th>
+                <th>Állapot</th>
+                <th>Utolsó IP</th>
+                <th>Műveletek</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for device in devices %}
+            <tr>
+                <td>{{ device.machine_name }}</td>
+                <td>
+                    <form method="post" action="/webadmin/devices/{{ device.id }}/save">
+                        <input type="text" name="display_name" value="{{ device.display_name }}">
+                </td>
+                <td><input type="text" name="owner" value="{{ device.owner }}"></td>
+                <td><textarea name="note">{{ device.note }}</textarea></td>
+                <td>
+                    {% if device.is_deleted %}
+                        <span class="status-offline">Archivált</span>
+                    {% elif device.is_online %}
+                        <span class="status-online">Online</span>
+                    {% else %}
+                        <span class="status-offline">Offline</span>
+                    {% endif %}
+                </td>
+                <td>{{ device.last_ip or '-' }}</td>
+                <td>
+                        <button type="submit">Mentés</button>
+                    </form>
+
+                    {% if not device.is_deleted %}
+                    <form method="post" action="/webadmin/devices/{{ device.id }}/archive" style="margin-top:8px;">
+                        <button type="submit" style="background:#dc2626;">Archiválás</button>
+                    </form>
+                    {% else %}
+                    <form method="post" action="/webadmin/devices/{{ device.id }}/restore" style="margin-top:8px;">
+                        <button type="submit" style="background:#16a34a;">Visszaállítás</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="7">Nincs megjeleníthető eszköz.</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

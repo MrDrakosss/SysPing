@@ -57,6 +57,7 @@ def list_devices(db: Session, search: str = "", include_deleted: bool = False) -
                 Device.display_name.like(pattern),
                 Device.owner.like(pattern),
                 Device.note.like(pattern),
+                Device.last_ip.like(pattern),
             )
         )
 
@@ -89,6 +90,17 @@ def soft_delete_device(db: Session, device_id: int) -> bool:
 
     device.is_deleted = True
     device.is_online = False
+    db.add(device)
+    db.commit()
+    return True
+
+
+def restore_device(db: Session, device_id: int) -> bool:
+    device = db.get(Device, device_id)
+    if not device:
+        return False
+
+    device.is_deleted = False
     db.add(device)
     db.commit()
     return True

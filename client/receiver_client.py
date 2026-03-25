@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from common import MACHINE_NAME, SERVER_WS
+from common import MACHINE_NAME, SERVER_WS, fetch_branding
 
 
 class ReceiverSignals(QObject):
@@ -128,7 +128,9 @@ class ServerListenerThread(threading.Thread):
 class ReceiverWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(f"SysPing Receiver - {MACHINE_NAME}")
+        self.branding = fetch_branding()
+        app_name = self.branding.get("app_name") or "SysPing"
+        self.setWindowTitle(f"{app_name} Receiver - {MACHINE_NAME}")
         self.resize(1050, 680)
 
         self.chats = {}
@@ -191,7 +193,8 @@ class ReceiverWindow(QMainWindow):
 
         self.tray_icon.setIcon(self.icon_normal)
         self.setWindowIcon(self.icon_normal)
-        self.tray_icon.setToolTip("SysPing Receiver")
+        app_name = self.branding.get("app_name") or "SysPing"
+        self.tray_icon.setToolTip(f"{app_name} Receiver")
 
         menu = QMenu()
         open_action = QAction("Megnyitás", self)
@@ -399,21 +402,23 @@ class ReceiverWindow(QMainWindow):
         self.chat_view.verticalScrollBar().setValue(self.chat_view.verticalScrollBar().maximum())
 
     def update_tray_icon(self):
+        app_name = self.branding.get("app_name") or "SysPing"
         total_unread = sum(self.unread.values())
         if total_unread > 0:
             self.tray_icon.setIcon(self.icon_unread)
             self.setWindowIcon(self.icon_unread)
-            self.tray_icon.setToolTip(f"SysPing Receiver - {total_unread} olvasatlan")
+            self.tray_icon.setToolTip(f"{app_name} Receiver - {total_unread} olvasatlan")
         else:
             self.tray_icon.setIcon(self.icon_normal)
             self.setWindowIcon(self.icon_normal)
-            self.tray_icon.setToolTip("SysPing Receiver")
+            self.tray_icon.setToolTip(f"{app_name} Receiver")
 
     def closeEvent(self, event):
         event.ignore()
         self.hide()
+        app_name = self.branding.get("app_name") or "SysPing"
         self.tray_icon.showMessage(
-            "SysPing Receiver",
+            f"{app_name} Receiver",
             "Az alkalmazás a tálcára került.",
             QSystemTrayIcon.Information,
             3000,
