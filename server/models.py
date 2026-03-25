@@ -33,3 +33,44 @@ class Message(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     read_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class AppSetting(Base):
+    __tablename__ = "app_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    app_name: Mapped[str] = mapped_column(String(120), default="SysPing")
+    company_name: Mapped[str] = mapped_column(String(120), default="")
+    app_icon_path: Mapped[str] = mapped_column(String(255), default="")
+    login_logo_path: Mapped[str] = mapped_column(String(255), default="")
+    primary_color: Mapped[str] = mapped_column(String(20), default="#2563eb")
+    secondary_color: Mapped[str] = mapped_column(String(20), default="#1e293b")
+    web_admin_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+
+class AdminUser(Base):
+    __tablename__ = "admin_users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    username: Mapped[str] = mapped_column(String(80), unique=True, index=True)
+    email: Mapped[str] = mapped_column(String(120), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    can_login_admin_gui: Mapped[bool] = mapped_column(Boolean, default=True)
+    can_login_web_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_superadmin: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    can_send_messages: Mapped[bool] = mapped_column(Boolean, default=True)
+    can_manage_devices: Mapped[bool] = mapped_column(Boolean, default=False)
+    can_manage_branding: Mapped[bool] = mapped_column(Boolean, default=False)
+    can_manage_admin_users: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )

@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 
 class DeviceOut(BaseModel):
@@ -33,3 +33,78 @@ class SendMessageIn(BaseModel):
 class ClientEvent(BaseModel):
     type: str
     message_id: int | None = None
+
+
+class LoginIn(BaseModel):
+    username: str
+    password: str
+
+
+class AdminUserCreate(BaseModel):
+    username: str
+    email: EmailStr
+    password: str
+    is_active: bool = True
+    can_login_admin_gui: bool = True
+    can_login_web_admin: bool = False
+    is_superadmin: bool = False
+    can_send_messages: bool = True
+    can_manage_devices: bool = False
+    can_manage_branding: bool = False
+    can_manage_admin_users: bool = False
+
+
+class AdminUserUpdate(BaseModel):
+    email: EmailStr | None = None
+    password: str | None = None
+    is_active: bool | None = None
+    can_login_admin_gui: bool | None = None
+    can_login_web_admin: bool | None = None
+    is_superadmin: bool | None = None
+    can_send_messages: bool | None = None
+    can_manage_devices: bool | None = None
+    can_manage_branding: bool | None = None
+    can_manage_admin_users: bool | None = None
+
+
+class AdminUserOut(BaseModel):
+    id: int
+    username: str
+    email: EmailStr
+    is_active: bool
+    can_login_admin_gui: bool
+    can_login_web_admin: bool
+    is_superadmin: bool
+    can_send_messages: bool
+    can_manage_devices: bool
+    can_manage_branding: bool
+    can_manage_admin_users: bool
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class AppSettingOut(BaseModel):
+    id: int
+    app_name: str
+    company_name: str
+    app_icon_path: str
+    login_logo_path: str
+    primary_color: str
+    secondary_color: str
+    web_admin_enabled: bool
+
+    class Config:
+        from_attributes = True
+
+
+class AppSettingUpdate(BaseModel):
+    app_name: str | None = None
+    company_name: str | None = None
+    app_icon_path: str | None = None
+    login_logo_path: str | None = None
+    primary_color: str | None = None
+    secondary_color: str | None = None
+    web_admin_enabled: bool | None = None
