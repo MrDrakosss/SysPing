@@ -72,8 +72,8 @@ def redirect_to_login() -> RedirectResponse:
 def webadmin_login_page(request: Request, db: Session = Depends(get_db)):
     settings = get_settings(db)
     return templates.TemplateResponse(
-        "login.html",
-        {
+        name="login.html",
+        context={
             "request": request,
             "settings": settings,
             "error": None,
@@ -93,8 +93,8 @@ def webadmin_login_submit(
 
     if not user or not user.can_login_web_admin:
         return templates.TemplateResponse(
-            "login.html",
-            {
+            name="login.html",
+            context={
                 "request": request,
                 "settings": settings,
                 "error": "Hibás belépési adatok vagy nincs web admin jogosultság.",
@@ -151,8 +151,8 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     ).scalars().all()
 
     return templates.TemplateResponse(
-        "dashboard.html",
-        {
+        name="dashboard.html",
+        context={
             "request": request,
             "settings": settings,
             "current_user": user,
@@ -183,8 +183,8 @@ def devices_page(
     devices = list_devices(db, search=search, include_deleted=include_deleted)
 
     return templates.TemplateResponse(
-        "devices.html",
-        {
+        name="devices.html",
+        context={
             "request": request,
             "settings": settings,
             "current_user": user,
@@ -266,8 +266,8 @@ def users_page(request: Request, db: Session = Depends(get_db)):
     users = list_admin_users(db)
 
     return templates.TemplateResponse(
-        "users.html",
-        {
+        name="users.html",
+        context={
             "request": request,
             "settings": settings,
             "current_user": user,
@@ -371,8 +371,8 @@ def settings_page(request: Request, db: Session = Depends(get_db)):
 
     settings = get_settings(db)
     return templates.TemplateResponse(
-        "settings.html",
-        {
+        name="settings.html",
+        context={
             "request": request,
             "settings": settings,
             "current_user": user,
