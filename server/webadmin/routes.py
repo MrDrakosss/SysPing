@@ -6,6 +6,7 @@ from typing import Dict
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
+from pathlib import Path
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -19,7 +20,8 @@ from services.settings import get_settings, update_settings
 from services.users import create_admin_user, list_admin_users, update_admin_user
 
 router = APIRouter(prefix="/webadmin", tags=["webadmin"])
-templates = Jinja2Templates(directory="webadmin/templates")
+BASE_DIR = Path(__file__).resolve().parent
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 WEB_SESSIONS: Dict[str, int] = {}
 UPLOADS_DIR = Path("webadmin/static/uploads")
