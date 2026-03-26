@@ -17,7 +17,7 @@ from services.devices import list_devices, restore_device, soft_delete_device, u
 from services.messages import get_dashboard_message_stats, list_all_messages, list_messages_for_admin
 from services.settings import get_settings, update_settings
 from services.users import create_admin_user, list_admin_users, update_admin_user, update_self_user
-from api.client_routes import get_online_clients
+from runtime_state import online_clients
 from services.messages import create_message, create_bulk_messages
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -216,7 +216,7 @@ async def messages_send(
         recipient_machine=recipient_machine,
         text=text,
         is_important=is_important is not None,
-        online_clients=get_online_clients(),
+        online_clients=online_clients,
     )
     return RedirectResponse(url="/webadmin/messages", status_code=303)
 
@@ -245,7 +245,7 @@ async def messages_send_bulk(
         recipient_machines=recipient_machines,
         text=text,
         is_important=is_important is not None,
-        online_clients=get_online_clients(),
+        online_clients=online_clients,
     )
     return RedirectResponse(url="/webadmin/messages", status_code=303)
 

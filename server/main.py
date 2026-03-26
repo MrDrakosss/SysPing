@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 
 from db import Base, engine
 from api.auth_routes import router as auth_router
-from api.admin_routes import router as admin_router, configure_online_clients
+from api.admin_routes import router as admin_router
 from api.public_routes import router as public_router
 from api.client_routes import router as client_router
 from webadmin.routes import router as webadmin_router
@@ -27,8 +27,6 @@ app.include_router(admin_router)
 app.include_router(public_router)
 app.include_router(client_router)
 app.include_router(webadmin_router)
-
-#configure_online_clients(get_online_clients())
 
 
 @app.get("/")
