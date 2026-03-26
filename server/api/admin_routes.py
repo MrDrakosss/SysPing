@@ -11,6 +11,7 @@ from auth import (
 )
 from db import get_db
 from models import Device
+from runtime_state import online_clients
 from schemas import (
     AdminUserCreate,
     AdminUserOut,
@@ -140,6 +141,7 @@ async def admin_send_message(
         db=db,
         sender_machine=user.username,
         sender_admin_user_id=user.id,
+        sender_display_name=payload.sender_display_name or user.display_name or user.username,
         recipient_machine=payload.recipient_machine,
         text=payload.text,
         is_important=payload.is_important,
@@ -162,6 +164,7 @@ async def admin_send_bulk_message(
         db=db,
         sender_machine=user.username,
         sender_admin_user_id=user.id,
+        sender_display_name=payload.sender_display_name or user.display_name or user.username,
         recipient_machines=payload.recipient_machines,
         text=payload.text,
         is_important=payload.is_important,

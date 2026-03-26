@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block page_title %}Saját adatok{% endblock %}
+{% block page_subtitle %}Megjelenített név, email cím és jelszó módosítása{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="section-title">Fiók adatai</div>
+
+    <form method="post" action="/webadmin/account/save" class="stack">
+        <div>
+            <label>Megjelenített név</label>
+            <input type="text" name="display_name" value="{{ current_user.display_name }}">
+        </div>
+
+        <div>
+            <label>Email cím</label>
+            <input type="email" name="email" value="{{ current_user.email }}">
+        </div>
+
+        <div>
+            <label>Új jelszó</label>
+            <input type="password" name="password" placeholder="Csak ha módosítani szeretnéd">
+        </div>
+
+        <button type="submit">Mentés</button>
+    </form>
+</div>
+{% endblock %}

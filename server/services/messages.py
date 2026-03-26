@@ -15,6 +15,7 @@ async def deliver_pending_messages(
 ) -> None:
     sockets = online_clients.get(machine_name, [])
     if not sockets:
+        print(f"[MSG] Nincs aktív websocket ehhez: {machine_name}", flush=True)
         return
 
     pending = db.execute(
@@ -24,11 +25,14 @@ async def deliver_pending_messages(
         .order_by(Message.created_at.asc())
     ).scalars().all()
 
+    print(f"[MSG] Pending üzenetek {machine_name} részére: {len(pending)}", flush=True)
+
     for msg in pending:
         payload = {
             "type": "message",
             "message_id": msg.id,
             "sender_machine": msg.sender_machine,
+            "sender_display_name": msg.sender_display_name or msg.sender_machine,
             "recipient_machine": msg.recipient_machine,
             "text": msg.text,
             "is_important": msg.is_important,
@@ -40,10 +44,11 @@ async def deliver_pending_messages(
             try:
                 await ws.send_json(payload)
                 delivered = True
-            except Exception:
-                pass
+                print(f"[MSG] Kiküldve websocketen: #{msg.id} -> {machine_name}", flush=True)
+            except Exception as e:
+                print(f"[MSG] Websocket küldési hiba #{msg.id}: {e}", flush=True)
 
-        if delivered:
+        if delivered and msg.status == "queued":
             msg.status = "delivered"
             msg.delivered_at = datetime.utcnow()
             db.add(msg)
@@ -55,6 +60,7 @@ async def create_message(
     db: Session,
     sender_machine: str,
     sender_admin_user_id: int | None,
+    sender_display_name: str,
     recipient_machine: str,
     text: str,
     is_important: bool,
@@ -72,6 +78,7 @@ async def create_message(
     msg = Message(
         sender_machine=sender_machine,
         sender_admin_user_id=sender_admin_user_id,
+        sender_display_name=sender_display_name,
         recipient_machine=recipient_machine,
         text=text,
         is_important=is_important,
@@ -81,8 +88,14 @@ async def create_message(
     db.commit()
     db.refresh(msg)
 
-    if recipient_machine in online_clients:
+    print(f"[MSG] Új üzenet létrehozva #{msg.id} -> {recipient_machine}", flush=True)
+    print(f"[MSG] Jelenlegi online kliensek: {list(online_clients.keys())}", flush=True)
+
+    if recipient_machine in online_clients and online_clients.get(recipient_machine):
         await deliver_pending_messages(db, recipient_machine, online_clients)
+        db.refresh(msg)
+    else:
+        print(f"[MSG] {recipient_machine} jelenleg nincs online websocket listában", flush=True)
 
     return msg
 
@@ -91,6 +104,7 @@ async def create_bulk_messages(
     db: Session,
     sender_machine: str,
     sender_admin_user_id: int | None,
+    sender_display_name: str,
     recipient_machines: list[str],
     text: str,
     is_important: bool,
@@ -103,6 +117,7 @@ async def create_bulk_messages(
             db=db,
             sender_machine=sender_machine,
             sender_admin_user_id=sender_admin_user_id,
+            sender_display_name=sender_display_name,
             recipient_machine=recipient_machine,
             text=text,
             is_important=is_important,
@@ -121,10 +136,14 @@ def mark_message_read(db: Session, machine_name: str, message_id: int) -> bool:
     if msg.recipient_machine != machine_name:
         return False
 
-    msg.status = "read"
-    msg.read_at = datetime.utcnow()
-    db.add(msg)
-    db.commit()
+    if msg.status != "read":
+        msg.status = "read"
+        msg.read_at = datetime.utcnow()
+        if msg.delivered_at is None:
+            msg.delivered_at = msg.read_at
+        db.add(msg)
+        db.commit()
+
     return True
 
 

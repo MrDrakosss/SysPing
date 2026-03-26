@@ -28,12 +28,14 @@ class SendMessageIn(BaseModel):
     recipient_machine: str
     text: str
     is_important: bool = False
+    sender_display_name: str | None = None
 
 
 class BulkSendMessageIn(BaseModel):
     recipient_machines: list[str]
     text: str
     is_important: bool = False
+    sender_display_name: str | None = None
 
 
 class LoginIn(BaseModel):
@@ -43,6 +45,7 @@ class LoginIn(BaseModel):
 
 class AdminUserCreate(BaseModel):
     username: str
+    display_name: str = ""
     email: EmailStr
     password: str
     is_active: bool = True
@@ -56,6 +59,7 @@ class AdminUserCreate(BaseModel):
 
 
 class AdminUserUpdate(BaseModel):
+    display_name: str | None = None
     email: EmailStr | None = None
     password: str | None = None
     is_active: bool | None = None
@@ -68,9 +72,16 @@ class AdminUserUpdate(BaseModel):
     can_manage_admin_users: bool | None = None
 
 
+class AdminSelfUpdate(BaseModel):
+    display_name: str | None = None
+    email: EmailStr | None = None
+    password: str | None = None
+
+
 class AdminUserOut(BaseModel):
     id: int
     username: str
+    display_name: str
     email: EmailStr
     is_active: bool
     can_login_admin_gui: bool
@@ -115,6 +126,7 @@ class MessageOut(BaseModel):
     id: int
     sender_machine: str
     sender_admin_user_id: int | None
+    sender_display_name: str
     recipient_machine: str
     text: str
     is_important: bool

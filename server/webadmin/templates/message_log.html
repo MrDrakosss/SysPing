@@ -10,7 +10,8 @@
     <table class="desktop-table">
         <thead>
             <tr>
-                <th>Küldő</th>
+                <th>Küldő user</th>
+                <th>Küldő név</th>
                 <th>Címzett</th>
                 <th>Üzenet</th>
                 <th>Típus</th>
@@ -24,6 +25,7 @@
         {% for msg in messages %}
             <tr>
                 <td>{{ msg.sender_machine }}</td>
+                <td>{{ msg.sender_display_name or '-' }}</td>
                 <td>{{ msg.recipient_machine }}</td>
                 <td>{{ msg.text }}</td>
                 <td>{% if msg.is_important %}<span class="danger">Fontos</span>{% else %}Normál{% endif %}</td>
@@ -34,7 +36,7 @@
             </tr>
         {% else %}
             <tr>
-                <td colspan="8">Nincs üzenet a logban.</td>
+                <td colspan="9">Nincs üzenet a logban.</td>
             </tr>
         {% endfor %}
         </tbody>
@@ -43,7 +45,8 @@
     <div class="mobile-cards">
         {% for msg in messages %}
         <div class="card">
-            <div><strong>{{ msg.sender_machine }}</strong> → {{ msg.recipient_machine }}</div>
+            <div><strong>{{ msg.sender_display_name or msg.sender_machine }}</strong> → {{ msg.recipient_machine }}</div>
+            <div class="muted">User: {{ msg.sender_machine }}</div>
             <div style="margin:8px 0;">{{ msg.text }}</div>
             <div>{% if msg.is_important %}<span class="danger">Fontos</span>{% else %}Normál{% endif %}</div>
             <div class="muted">Kiküldve: {{ msg.created_at }}</div>

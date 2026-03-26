@@ -12,12 +12,12 @@ from sqlalchemy.orm import Session
 from auth import authenticate_user
 from db import get_db
 from models import AdminUser, Device
-from schemas import AdminUserCreate, AdminUserUpdate, AppSettingUpdate, BulkSendMessageIn, DeviceUpdate, SendMessageIn
+from schemas import AdminSelfUpdate, AdminUserCreate, AdminUserUpdate, AppSettingUpdate, DeviceUpdate
 from services.devices import list_devices, restore_device, soft_delete_device, update_device
 from services.messages import get_dashboard_message_stats, list_all_messages, list_messages_for_admin
 from services.settings import get_settings, update_settings
-from services.users import create_admin_user, list_admin_users, update_admin_user
-from api.admin_routes import online_clients
+from services.users import create_admin_user, list_admin_users, update_admin_user, update_self_user
+from api.client_routes import get_online_clients
 from services.messages import create_message, create_bulk_messages
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -28,6 +28,13 @@ router = APIRouter(prefix="/webadmin", tags=["webadmin"])
 WEB_SESSIONS: Dict[str, int] = {}
 UPLOADS_DIR = BASE_DIR / "static" / "uploads"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+
+SENDER_OPTIONS = [
+    "Rendszergazda",
+    "Rendszergazda csoport",
+    "IT üzemeltetés",
+    "Helpdesk",
+]
 
 
 def save_upload(file: UploadFile | None, prefix: str) -> str:
@@ -74,11 +81,7 @@ def webadmin_login_page(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(
         request,
         "login.html",
-        {
-            "request": request,
-            "settings": settings,
-            "error": None,
-        },
+        {"request": request, "settings": settings, "error": None},
     )
 
 
@@ -184,6 +187,7 @@ def messages_page(request: Request, db: Session = Depends(get_db)):
             "current_user": user,
             "devices": devices,
             "messages": my_messages,
+            "sender_options": SENDER_OPTIONS,
         },
     )
 
@@ -193,6 +197,7 @@ async def messages_send(
     request: Request,
     recipient_machine: str = Form(...),
     text: str = Form(...),
+    sender_display_name: str = Form(""),
     is_important: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ):
@@ -201,14 +206,17 @@ async def messages_send(
     except PermissionError:
         return redirect_to_login()
 
+    sender_name = sender_display_name.strip() or user.display_name or user.username
+
     await create_message(
         db=db,
         sender_machine=user.username,
         sender_admin_user_id=user.id,
+        sender_display_name=sender_name,
         recipient_machine=recipient_machine,
         text=text,
         is_important=is_important is not None,
-        online_clients=online_clients,
+        online_clients=get_online_clients(),
     )
     return RedirectResponse(url="/webadmin/messages", status_code=303)
 
@@ -218,6 +226,7 @@ async def messages_send_bulk(
     request: Request,
     recipient_machines: list[str] = Form(...),
     text: str = Form(...),
+    sender_display_name: str = Form(""),
     is_important: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ):
@@ -226,14 +235,17 @@ async def messages_send_bulk(
     except PermissionError:
         return redirect_to_login()
 
+    sender_name = sender_display_name.strip() or user.display_name or user.username
+
     await create_bulk_messages(
         db=db,
         sender_machine=user.username,
         sender_admin_user_id=user.id,
+        sender_display_name=sender_name,
         recipient_machines=recipient_machines,
         text=text,
         is_important=is_important is not None,
-        online_clients=online_clients,
+        online_clients=get_online_clients(),
     )
     return RedirectResponse(url="/webadmin/messages", status_code=303)
 
@@ -263,154 +275,31 @@ def message_log_page(request: Request, db: Session = Depends(get_db)):
     )
 
 
-@router.get("/devices", response_class=HTMLResponse)
-def devices_page(
-    request: Request,
-    search: str = "",
-    include_deleted: bool = False,
-    db: Session = Depends(get_db),
-):
+@router.get("/account", response_class=HTMLResponse)
+def account_page(request: Request, db: Session = Depends(get_db)):
     try:
         user = require_web_user(request, db)
     except PermissionError:
         return redirect_to_login()
 
     settings = get_settings(db)
-    devices = list_devices(db, search=search, include_deleted=include_deleted)
-
     return templates.TemplateResponse(
         request,
-        "devices.html",
+        "account.html",
         {
             "request": request,
             "settings": settings,
             "current_user": user,
-            "devices": devices,
-            "search": search,
-            "include_deleted": include_deleted,
         },
     )
 
 
-@router.post("/devices/{device_id}/save")
-def devices_save(
+@router.post("/account/save")
+def account_save(
     request: Request,
-    device_id: int,
     display_name: str = Form(""),
-    owner: str = Form(""),
-    note: str = Form(""),
-    db: Session = Depends(get_db),
-):
-    try:
-        user = require_web_user(request, db)
-    except PermissionError:
-        return redirect_to_login()
-
-    payload = DeviceUpdate(display_name=display_name, owner=owner, note=note)
-    update_device(db, device_id, payload)
-    return RedirectResponse(url="/webadmin/devices", status_code=303)
-
-
-@router.post("/devices/{device_id}/archive")
-def devices_archive(request: Request, device_id: int, db: Session = Depends(get_db)):
-    try:
-        user = require_web_user(request, db)
-    except PermissionError:
-        return redirect_to_login()
-
-    soft_delete_device(db, device_id)
-    return RedirectResponse(url="/webadmin/devices", status_code=303)
-
-
-@router.post("/devices/{device_id}/restore")
-def devices_restore(request: Request, device_id: int, db: Session = Depends(get_db)):
-    try:
-        user = require_web_user(request, db)
-    except PermissionError:
-        return redirect_to_login()
-
-    restore_device(db, device_id)
-    return RedirectResponse(url="/webadmin/devices?include_deleted=true", status_code=303)
-
-
-@router.get("/users", response_class=HTMLResponse)
-def users_page(request: Request, db: Session = Depends(get_db)):
-    try:
-        user = require_web_user(request, db)
-    except PermissionError:
-        return redirect_to_login()
-
-    settings = get_settings(db)
-    users = list_admin_users(db)
-
-    return templates.TemplateResponse(
-        request,
-        "users.html",
-        {
-            "request": request,
-            "settings": settings,
-            "current_user": user,
-            "users": users,
-        },
-    )
-
-
-@router.post("/users/create")
-def users_create(
-    request: Request,
-    username: str = Form(...),
-    email: str = Form(...),
-    password: str = Form(...),
-    is_active: str | None = Form(default=None),
-    can_login_admin_gui: str | None = Form(default=None),
-    can_login_web_admin: str | None = Form(default=None),
-    is_superadmin: str | None = Form(default=None),
-    can_send_messages: str | None = Form(default=None),
-    can_manage_devices: str | None = Form(default=None),
-    can_manage_branding: str | None = Form(default=None),
-    can_manage_admin_users: str | None = Form(default=None),
-    db: Session = Depends(get_db),
-):
-    try:
-        user = require_web_user(request, db)
-    except PermissionError:
-        return redirect_to_login()
-
-    payload = AdminUserCreate(
-        username=username.strip(),
-        email=email.strip(),
-        password=password,
-        is_active=is_active is not None,
-        can_login_admin_gui=can_login_admin_gui is not None,
-        can_login_web_admin=can_login_web_admin is not None,
-        is_superadmin=is_superadmin is not None,
-        can_send_messages=can_send_messages is not None,
-        can_manage_devices=can_manage_devices is not None,
-        can_manage_branding=can_manage_branding is not None,
-        can_manage_admin_users=can_manage_admin_users is not None,
-    )
-    try:
-        create_admin_user(db, payload)
-    except ValueError:
-        pass
-
-    return RedirectResponse(url="/webadmin/users", status_code=303)
-
-
-@router.post("/users/{user_id}/save")
-def users_save(
-    request: Request,
-    user_id: int,
-    email: str = Form(...),
+    email: str = Form(""),
     password: str = Form(""),
-    is_active: str | None = Form(default=None),
-    can_login_admin_gui: str | None = Form(default=None),
-    can_login_web_admin: str | None = Form(default=None),
-    is_superadmin: str | None = Form(default=None),
-    can_send_messages: str | None = Form(default=None),
-    can_manage_devices: str | None = Form(default=None),
-    can_manage_branding: str | None = Form(default=None),
-    can_manage_admin_users: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ):
     try:
@@ -418,71 +307,16 @@ def users_save(
     except PermissionError:
         return redirect_to_login()
 
-    payload = AdminUserUpdate(
-        email=email.strip(),
-        password=password.strip() or None,
-        is_active=is_active is not None,
-        can_login_admin_gui=can_login_admin_gui is not None,
-        can_login_web_admin=can_login_web_admin is not None,
-        is_superadmin=is_superadmin is not None,
-        can_send_messages=can_send_messages is not None,
-        can_manage_devices=can_manage_devices is not None,
-        can_manage_branding=can_manage_branding is not None,
-        can_manage_admin_users=can_manage_admin_users is not None,
+    update_self_user(
+        db,
+        user.id,
+        AdminSelfUpdate(
+            display_name=display_name.strip(),
+            email=email.strip(),
+            password=password.strip() or None,
+        ),
     )
-    update_admin_user(db, user_id, payload)
-    return RedirectResponse(url="/webadmin/users", status_code=303)
+    return RedirectResponse(url="/webadmin/account", status_code=303)
 
-
-@router.get("/settings", response_class=HTMLResponse)
-def settings_page(request: Request, db: Session = Depends(get_db)):
-    try:
-        user = require_web_user(request, db)
-    except PermissionError:
-        return redirect_to_login()
-
-    settings = get_settings(db)
-    return templates.TemplateResponse(
-        request,
-        "settings.html",
-        {
-            "request": request,
-            "settings": settings,
-            "current_user": user,
-        },
-    )
-
-
-@router.post("/settings/save")
-def settings_save(
-    request: Request,
-    app_name: str = Form(""),
-    company_name: str = Form(""),
-    primary_color: str = Form("#2563eb"),
-    secondary_color: str = Form("#1e293b"),
-    web_admin_enabled: str | None = Form(default=None),
-    app_icon_path: str = Form(""),
-    login_logo_path: str = Form(""),
-    app_icon_file: UploadFile | None = File(default=None),
-    login_logo_file: UploadFile | None = File(default=None),
-    db: Session = Depends(get_db),
-):
-    try:
-        user = require_web_user(request, db)
-    except PermissionError:
-        return redirect_to_login()
-
-    uploaded_icon = save_upload(app_icon_file, "app_icon")
-    uploaded_logo = save_upload(login_logo_file, "login_logo")
-
-    payload = AppSettingUpdate(
-        app_name=app_name.strip(),
-        company_name=company_name.strip(),
-        app_icon_path=uploaded_icon or app_icon_path.strip(),
-        login_logo_path=uploaded_logo or login_logo_path.strip(),
-        primary_color=primary_color.strip(),
-        secondary_color=secondary_color.strip(),
-        web_admin_enabled=web_admin_enabled is not None,
-    )
-    update_settings(db, payload)
-    return RedirectResponse(url="/webadmin/settings", status_code=303)
+# a devices/users/settings route-ok maradhatnak az előző verzióból,
+# azokban csak a template context maradjon current_user + settings

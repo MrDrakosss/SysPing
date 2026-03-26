@@ -8,12 +8,22 @@
     <div class="card">
         <div class="section-title">Új üzenet küldése egy gépnek</div>
         <form method="post" action="/webadmin/messages/send" class="stack">
+            <select name="sender_display_name">
+                <option value="{{ current_user.display_name or current_user.username }}">
+                    {{ current_user.display_name or current_user.username }}
+                </option>
+                {% for item in sender_options %}
+                    <option value="{{ item }}">{{ item }}</option>
+                {% endfor %}
+            </select>
+
             <select name="recipient_machine" required>
                 <option value="">Válassz gépet...</option>
                 {% for device in devices %}
                     <option value="{{ device.machine_name }}">{{ device.machine_name }}{% if device.owner %} — {{ device.owner }}{% endif %}</option>
                 {% endfor %}
             </select>
+
             <textarea name="text" placeholder="Írd ide az üzenetet..." required></textarea>
             <label><input type="checkbox" name="is_important"> Fontos üzenet</label>
             <button type="submit">Küldés</button>
@@ -23,6 +33,15 @@
     <div class="card">
         <div class="section-title">Tömeges üzenetküldés</div>
         <form method="post" action="/webadmin/messages/send-bulk" class="stack">
+            <select name="sender_display_name">
+                <option value="{{ current_user.display_name or current_user.username }}">
+                    {{ current_user.display_name or current_user.username }}
+                </option>
+                {% for item in sender_options %}
+                    <option value="{{ item }}">{{ item }}</option>
+                {% endfor %}
+            </select>
+
             <div style="max-height:220px; overflow:auto; border:1px solid var(--border); border-radius:10px; padding:10px;">
                 {% for device in devices %}
                 <div style="margin-bottom:8px;">
@@ -46,6 +65,7 @@
     <table class="desktop-table">
         <thead>
             <tr>
+                <th>Küldő név</th>
                 <th>Címzett</th>
                 <th>Üzenet</th>
                 <th>Típus</th>
@@ -58,6 +78,7 @@
         <tbody>
         {% for msg in messages %}
             <tr>
+                <td>{{ msg.sender_display_name or msg.sender_machine }}</td>
                 <td>{{ msg.recipient_machine }}</td>
                 <td>{{ msg.text }}</td>
                 <td>{% if msg.is_important %}<span class="danger">Fontos</span>{% else %}Normál{% endif %}</td>
@@ -68,7 +89,7 @@
             </tr>
         {% else %}
             <tr>
-                <td colspan="7">Még nincs kiküldött üzenet.</td>
+                <td colspan="8">Még nincs kiküldött üzenet.</td>
             </tr>
         {% endfor %}
         </tbody>
@@ -77,7 +98,7 @@
     <div class="mobile-cards">
         {% for msg in messages %}
         <div class="card">
-            <div><strong>{{ msg.recipient_machine }}</strong></div>
+            <div><strong>{{ msg.sender_display_name or msg.sender_machine }}</strong> → {{ msg.recipient_machine }}</div>
             <div style="margin:8px 0;">{{ msg.text }}</div>
             <div>{% if msg.is_important %}<span class="danger">Fontos</span>{% else %}Normál{% endif %}</div>
             <div class="muted">Kiküldve: {{ msg.created_at }}</div>

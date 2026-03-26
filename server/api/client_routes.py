@@ -1,9 +1,8 @@
-from typing import Dict, List
-
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
 from db import SessionLocal
+from runtime_state import online_clients
 from schemas import MessageOut
 from services.devices import set_device_offline, upsert_device
 from services.messages import (
@@ -13,12 +12,6 @@ from services.messages import (
 )
 
 router = APIRouter(tags=["client_ws"])
-
-online_clients: Dict[str, List[WebSocket]] = {}
-
-
-def get_online_clients() -> Dict[str, List[WebSocket]]:
-    return online_clients
 
 
 @router.get("/client/messages/{machine_name}", response_model=list[MessageOut])
@@ -38,13 +31,15 @@ async def client_ws(websocket: WebSocket, machine_name: str):
     client_ip = websocket.client.host if websocket.client else ""
 
     try:
-        print(f"[WS] Csatlakozott: {machine_name} ({client_ip})")
+        print(f"[WS] Csatlakozott: {machine_name} ({client_ip})", flush=True)
 
         upsert_device(db, machine_name, client_ip)
 
         if machine_name not in online_clients:
             online_clients[machine_name] = []
         online_clients[machine_name].append(websocket)
+
+        print(f"[WS] Online kliensek: {list(online_clients.keys())}", flush=True)
 
         await deliver_pending_messages(db, machine_name, online_clients)
 
@@ -61,9 +56,9 @@ async def client_ws(websocket: WebSocket, machine_name: str):
                     mark_message_read(db, machine_name, message_id)
 
     except WebSocketDisconnect:
-        print(f"[WS] Lecsatlakozott: {machine_name}")
+        print(f"[WS] Lecsatlakozott: {machine_name}", flush=True)
     except Exception as e:
-        print(f"[WS] Hiba {machine_name} esetén: {e}")
+        print(f"[WS] Hiba {machine_name} esetén: {e}", flush=True)
     finally:
         sockets = online_clients.get(machine_name, [])
         if websocket in sockets:
@@ -74,6 +69,7 @@ async def client_ws(websocket: WebSocket, machine_name: str):
             try:
                 set_device_offline(db, machine_name)
             except Exception as e:
-                print(f"[WS] Offline állapot mentési hiba {machine_name}: {e}")
+                print(f"[WS] Offline állapot mentési hiba {machine_name}: {e}", flush=True)
 
+        print(f"[WS] Maradt online kliens: {list(online_clients.keys())}", flush=True)
         db.close()

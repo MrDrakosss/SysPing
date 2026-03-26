@@ -28,6 +28,7 @@ class Message(Base):
 
     sender_machine: Mapped[str] = mapped_column(String(120), index=True)
     sender_admin_user_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    sender_display_name: Mapped[str] = mapped_column(String(120), default="")
 
     recipient_machine: Mapped[str] = mapped_column(String(120), index=True)
 
@@ -62,6 +63,7 @@ class AdminUser(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     username: Mapped[str] = mapped_column(String(80), unique=True, index=True)
+    display_name: Mapped[str] = mapped_column(String(120), default="")
     email: Mapped[str] = mapped_column(String(120), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)

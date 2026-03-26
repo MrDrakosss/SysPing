@@ -274,7 +274,7 @@ class ReceiverWindow(QMainWindow):
         self.app_name = self.branding.get("app_name") or "SysPing"
         self.allow_real_exit = False
 
-        self.setWindowTitle(f"{self.app_name} Receiver - {MACHINE_NAME}")
+        self.setWindowTitle(f"{self.app_name} - {MACHINE_NAME}")
         self.resize(1050, 680)
 
         self.chats = {}
@@ -326,7 +326,7 @@ class ReceiverWindow(QMainWindow):
 
         self.tray_icon.setIcon(self.icon_normal)
         self.setWindowIcon(self.icon_normal)
-        self.tray_icon.setToolTip(f"{self.app_name} Receiver")
+        self.tray_icon.setToolTip(f"{self.app_name}")
 
         menu = QMenu()
         open_action = QAction("Megnyitás", self)
@@ -345,7 +345,7 @@ class ReceiverWindow(QMainWindow):
         try:
             data = http_get_json(f"/client/messages/{MACHINE_NAME}?limit=20")
             for item in data:
-                sender = item["sender_machine"]
+                sender = item.get("sender_display_name") or item["sender_machine"]
                 msg = {
                     "message_id": item["id"],
                     "sender": sender,
@@ -391,7 +391,8 @@ class ReceiverWindow(QMainWindow):
             return
 
         message_id = payload["message_id"]
-        sender = payload["sender_machine"]
+        real_sender_machine = payload["sender_machine"]
+        sender = payload.get("sender_display_name") or real_sender_machine
         text = payload["text"]
         important = payload["is_important"]
         timestamp = payload["created_at"]
@@ -555,11 +556,11 @@ class ReceiverWindow(QMainWindow):
         if total_unread > 0:
             self.tray_icon.setIcon(self.icon_unread)
             self.setWindowIcon(self.icon_unread)
-            self.tray_icon.setToolTip(f"{self.app_name} Receiver - {total_unread} olvasatlan")
+            self.tray_icon.setToolTip(f"{self.app_name} - {total_unread} olvasatlan")
         else:
             self.tray_icon.setIcon(self.icon_normal)
             self.setWindowIcon(self.icon_normal)
-            self.tray_icon.setToolTip(f"{self.app_name} Receiver")
+            self.tray_icon.setToolTip(f"{self.app_name}")
 
     def request_full_exit(self):
         approved = request_admin_close_approval()

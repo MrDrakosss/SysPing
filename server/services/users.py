@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from auth import hash_password
 from models import AdminUser
-from schemas import AdminUserCreate, AdminUserUpdate
+from schemas import AdminSelfUpdate, AdminUserCreate, AdminUserUpdate
 
 
 def list_admin_users(db: Session) -> list[AdminUser]:
@@ -27,6 +27,7 @@ def create_admin_user(db: Session, payload: AdminUserCreate) -> AdminUser:
 
     user = AdminUser(
         username=payload.username.strip(),
+        display_name=(payload.display_name or payload.username).strip(),
         email=str(payload.email).strip(),
         password_hash=hash_password(payload.password),
         is_active=payload.is_active,
@@ -50,6 +51,8 @@ def update_admin_user(db: Session, user_id: int, payload: AdminUserUpdate) -> Ad
     if not user:
         return None
 
+    if payload.display_name is not None:
+        user.display_name = payload.display_name.strip()
     if payload.email is not None:
         user.email = str(payload.email).strip()
     if payload.password is not None:
@@ -70,6 +73,24 @@ def update_admin_user(db: Session, user_id: int, payload: AdminUserUpdate) -> Ad
         user.can_manage_branding = payload.can_manage_branding
     if payload.can_manage_admin_users is not None:
         user.can_manage_admin_users = payload.can_manage_admin_users
+
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def update_self_user(db: Session, user_id: int, payload: AdminSelfUpdate) -> AdminUser | None:
+    user = db.get(AdminUser, user_id)
+    if not user:
+        return None
+
+    if payload.display_name is not None:
+        user.display_name = payload.display_name.strip()
+    if payload.email is not None:
+        user.email = str(payload.email).strip()
+    if payload.password is not None and payload.password.strip():
+        user.password_hash = hash_password(payload.password)
 
     db.add(user)
     db.commit()

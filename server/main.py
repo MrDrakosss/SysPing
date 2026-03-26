@@ -28,7 +28,7 @@ app.include_router(public_router)
 app.include_router(client_router)
 app.include_router(webadmin_router)
 
-configure_online_clients(get_online_clients())
+#configure_online_clients(get_online_clients())
 
 
 @app.get("/")
