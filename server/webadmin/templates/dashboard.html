@@ -4,97 +4,114 @@
 {% block page_subtitle %}Áttekintés az eszközökről, üzenetekről és olvasási statisztikákról{% endblock %}
 
 {% block content %}
-<div class="grid grid-4">
-    <div class="card">
-        <div class="muted">Összes eszköz</div>
-        <div class="stat-value">{{ stats.total_devices }}</div>
+<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
+        <div class="text-sm text-slate-500">Összes eszköz</div>
+        <div class="mt-3 text-3xl font-bold text-slate-900">{{ stats.total_devices }}</div>
     </div>
-    <div class="card">
-        <div class="muted">Online eszközök</div>
-        <div class="stat-value success">{{ stats.online_devices }}</div>
+
+    <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
+        <div class="text-sm text-slate-500">Online eszközök</div>
+        <div class="mt-3 text-3xl font-bold text-emerald-600">{{ stats.online_devices }}</div>
     </div>
-    <div class="card">
-        <div class="muted">Függő üzenetek</div>
-        <div class="stat-value warning">{{ stats.queued_messages }}</div>
+
+    <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
+        <div class="text-sm text-slate-500">Függő üzenetek</div>
+        <div class="mt-3 text-3xl font-bold text-amber-500">{{ stats.queued_messages }}</div>
     </div>
-    <div class="card">
-        <div class="muted">Összes kiküldött üzenet</div>
-        <div class="stat-value">{{ stats.total_messages }}</div>
+
+    <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
+        <div class="text-sm text-slate-500">Összes kiküldött üzenet</div>
+        <div class="mt-3 text-3xl font-bold text-slate-900">{{ stats.total_messages }}</div>
     </div>
 </div>
 
-<div class="grid grid-2">
-    <div class="card">
-        <div class="section-title">Olvasási statisztika</div>
-        <div class="stack">
-            <div>
-                <div class="muted">Átlagos olvasási idő</div>
-                <div class="stat-value">
-                    {{ "%.1f"|format(stats.avg_read_seconds) }} mp
-                </div>
-            </div>
-            <div class="muted">
-                Ez azt mutatja, hogy a kiküldött és már olvasott üzeneteket átlagosan mennyi idő alatt nyitják meg.
-            </div>
-        </div>
+<div class="mt-6 grid gap-6 lg:grid-cols-2">
+    <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
+        <h2 class="text-lg font-semibold text-slate-900">Olvasási statisztika</h2>
+        <p class="mt-2 text-sm text-slate-500">Átlagos idő, amíg a felhasználók megnyitják az üzeneteket.</p>
+        <div class="mt-5 text-4xl font-bold text-brand">{{ "%.1f"|format(stats.avg_read_seconds) }} mp</div>
     </div>
 
-    <div class="card">
-        <div class="section-title">Gyors műveletek</div>
-        <div class="stack">
-            <a href="/webadmin/messages"><button type="button">Új üzenet küldése</button></a>
-            <a href="/webadmin/devices"><button type="button">Eszközök kezelése</button></a>
+    <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
+        <h2 class="text-lg font-semibold text-slate-900">Gyors műveletek</h2>
+        <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <a href="/webadmin/messages"
+                class="inline-flex items-center justify-center rounded-2xl bg-brand px-4 py-3 text-sm font-semibold text-white hover:opacity-95">
+                Új üzenet küldése
+            </a>
+            <a href="/webadmin/devices"
+                class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                Eszközök kezelése
+            </a>
             {% if current_user.is_superadmin %}
-            <a href="/webadmin/message-log"><button type="button">Teljes üzenet log megnyitása</button></a>
+            <a href="/webadmin/message-log"
+                class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                Teljes log
+            </a>
             {% endif %}
         </div>
     </div>
 </div>
 
-<div class="card">
-    <div class="section-title">Legutóbbi aktív eszközök</div>
+<div class="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
+    <div class="mb-4 flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-slate-900">Legutóbbi aktív eszközök</h2>
+    </div>
 
-    <table class="desktop-table">
-        <thead>
-            <tr>
-                <th>Gépnév</th>
-                <th>Tulajdonos</th>
-                <th>Állapot</th>
-                <th>Utolsó IP</th>
-                <th>Utolsó aktivitás</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for device in recent_devices %}
-            <tr>
-                <td>{{ device.machine_name }}</td>
-                <td>{{ device.owner or '-' }}</td>
-                <td>
-                    {% if device.is_online %}
-                        <span class="success">Online</span>
-                    {% else %}
-                        <span class="danger">Offline</span>
-                    {% endif %}
-                </td>
-                <td>{{ device.last_ip or '-' }}</td>
-                <td>{{ device.last_seen_at }}</td>
-            </tr>
-        {% else %}
-            <tr>
-                <td colspan="5">Nincs adat.</td>
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+    <div class="hidden overflow-x-auto md:block">
+        <table class="min-w-full divide-y divide-slate-200">
+            <thead>
+                <tr class="text-left text-sm text-slate-500">
+                    <th class="px-4 py-3 font-medium">Gépnév</th>
+                    <th class="px-4 py-3 font-medium">Tulajdonos</th>
+                    <th class="px-4 py-3 font-medium">Állapot</th>
+                    <th class="px-4 py-3 font-medium">Utolsó IP</th>
+                    <th class="px-4 py-3 font-medium">Utolsó aktivitás</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 text-sm">
+                {% for device in recent_devices %}
+                <tr>
+                    <td class="px-4 py-3 font-medium text-slate-900">{{ device.machine_name }}</td>
+                    <td class="px-4 py-3 text-slate-600">{{ device.owner or '-' }}</td>
+                    <td class="px-4 py-3">
+                        {% if device.is_online %}
+                        <span
+                            class="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">Online</span>
+                        {% else %}
+                        <span
+                            class="inline-flex rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700">Offline</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-slate-600">{{ device.last_ip or '-' }}</td>
+                    <td class="px-4 py-3 text-slate-600">{{ device.last_seen_at }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="px-4 py-6 text-center text-slate-500">Nincs adat.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 
-    <div class="mobile-cards">
+    <div class="space-y-4 md:hidden">
         {% for device in recent_devices %}
-        <div class="card">
-            <div><strong>{{ device.machine_name }}</strong></div>
-            <div class="muted">Tulajdonos: {{ device.owner or '-' }}</div>
-            <div>{% if device.is_online %}<span class="success">Online</span>{% else %}<span class="danger">Offline</span>{% endif %}</div>
-            <div class="muted">IP: {{ device.last_ip or '-' }}</div>
-            <div class="muted">Utolsó aktivitás: {{ device.last_seen_at }}</div>
+        <div class="rounded-2xl border border-slate-200 p-4">
+            <div class="font-semibold text-slate-900">{{ device.machine_name }}</div>
+            <div class="mt-1 text-sm text-slate-500">Tulajdonos: {{ device.owner or '-' }}</div>
+            <div class="mt-2">
+                {% if device.is_online %}
+                <span
+                    class="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">Online</span>
+                {% else %}
+                <span
+                    class="inline-flex rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700">Offline</span>
+                {% endif %}
+            </div>
+            <div class="mt-2 text-sm text-slate-500">IP: {{ device.last_ip or '-' }}</div>
+            <div class="mt-1 text-sm text-slate-500">Utolsó aktivitás: {{ device.last_seen_at }}</div>
         </div>
         {% endfor %}
     </div>
