@@ -4,7 +4,6 @@ import sys
 import tempfile
 import threading
 import time
-import urllib.request
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -15,6 +14,7 @@ from PySide6.QtGui import QAction, QColor, QFont, QIcon, QPainter, QPalette, QPi
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
+    QHBoxLayout,
     QLabel,
     QListWidget,
     QListWidgetItem,
@@ -42,62 +42,144 @@ def build_stylesheet(dark: bool) -> str:
     if dark:
         return """
         QMainWindow, QWidget {
-            background: #1e1f22;
-            color: #e8eaed;
+            background: #111827;
+            color: #e5e7eb;
+            font-family: "Segoe UI";
         }
-        QListWidget, QTextBrowser {
-            background: #2b2d31;
-            color: #e8eaed;
-            border: 1px solid #3b3f45;
-            border-radius: 10px;
+
+        QListWidget {
+            background: #0f172a;
+            border: 1px solid #1f2937;
+            border-radius: 18px;
             padding: 8px;
-            font-size: 14px;
+            outline: none;
         }
+
+        QListWidget::item {
+            background: transparent;
+            border-radius: 14px;
+            padding: 12px;
+            margin: 4px 0;
+        }
+
+        QListWidget::item:selected {
+            background: #1e3a8a;
+            color: white;
+        }
+
+        QListWidget::item:hover {
+            background: #1f2937;
+        }
+
+        QTextBrowser {
+            background: #0b1220;
+            border: 1px solid #1f2937;
+            border-radius: 20px;
+            padding: 12px;
+        }
+
+        QLabel {
+            color: #e5e7eb;
+        }
+
         QPushButton {
-            background: #3b82f6;
+            background: #2563eb;
             color: white;
             border: none;
-            border-radius: 10px;
+            border-radius: 12px;
             padding: 10px 14px;
-            font-weight: bold;
-        }
-        QPushButton:hover {
-            background: #2563eb;
-        }
-        QLabel {
-            color: #e8eaed;
-            font-size: 13px;
             font-weight: 600;
+        }
+
+        QPushButton:hover {
+            background: #1d4ed8;
+        }
+
+        QMenu {
+            background: #111827;
+            color: #e5e7eb;
+            border: 1px solid #1f2937;
+            padding: 6px;
+        }
+
+        QMenu::item {
+            padding: 8px 14px;
+            border-radius: 8px;
+        }
+
+        QMenu::item:selected {
+            background: #1f2937;
         }
         """
     return """
     QMainWindow, QWidget {
-        background: #eef2f7;
-        color: #111827;
+        background: #f8fafc;
+        color: #0f172a;
+        font-family: "Segoe UI";
     }
-    QListWidget, QTextBrowser {
+
+    QListWidget {
         background: white;
-        color: #111827;
-        border: 1px solid #d0d5dd;
-        border-radius: 10px;
+        border: 1px solid #e2e8f0;
+        border-radius: 18px;
         padding: 8px;
-        font-size: 14px;
+        outline: none;
     }
+
+    QListWidget::item {
+        background: transparent;
+        border-radius: 14px;
+        padding: 12px;
+        margin: 4px 0;
+    }
+
+    QListWidget::item:selected {
+        background: #dbeafe;
+        color: #1e3a8a;
+    }
+
+    QListWidget::item:hover {
+        background: #f1f5f9;
+    }
+
+    QTextBrowser {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 20px;
+        padding: 12px;
+    }
+
+    QLabel {
+        color: #0f172a;
+    }
+
     QPushButton {
         background: #2563eb;
         color: white;
         border: none;
-        border-radius: 10px;
+        border-radius: 12px;
         padding: 10px 14px;
-        font-weight: bold;
+        font-weight: 600;
     }
+
     QPushButton:hover {
         background: #1d4ed8;
     }
-    QLabel {
-        color: #111827;
-        font-size: 13px;
-        font-weight: 600;
+
+    QMenu {
+        background: white;
+        color: #0f172a;
+        border: 1px solid #e2e8f0;
+        padding: 6px;
+    }
+
+    QMenu::item {
+        padding: 8px 14px;
+        border-radius: 8px;
+    }
+
+    QMenu::item:selected {
+        background: #eff6ff;
     }
     """
 
@@ -188,10 +270,10 @@ class ImportantAlertDialog(QDialog):
         self.setWindowTitle(f"{app_name} - FONTOS")
         self.setModal(True)
         self.setWindowFlag(Qt.WindowStaysOnTopHint, True)
-        self.resize(560, 280)
+        self.resize(580, 320)
 
         title = QLabel(f"Fontos üzenet érkezett: {sender}")
-        title.setStyleSheet("font-size: 18px; font-weight: bold; color: #ef4444;")
+        title.setStyleSheet("font-size: 18px; font-weight: 700; color: #ef4444;")
 
         body = QTextBrowser()
         body.setPlainText(text)
@@ -274,13 +356,14 @@ class ReceiverWindow(QMainWindow):
         self.app_name = self.branding.get("app_name") or "SysPing"
         self.allow_real_exit = False
 
-        self.setWindowTitle(f"{self.app_name} - {MACHINE_NAME}")
-        self.resize(1050, 680)
+        self.chats: dict[str, list[dict]] = {}
+        self.unread: dict[str, int] = {}
+        self.unread_important: dict[int, dict] = {}
+        self.current_chat: str | None = None
+        self._refreshing_chat_list = False
 
-        self.chats = {}
-        self.unread = {}
-        self.current_chat = None
-        self.unread_important = {}
+        self.setWindowTitle(f"{self.app_name} - {MACHINE_NAME}")
+        self.resize(1180, 760)
 
         self.signals = ReceiverSignals()
         self.signals.server_message.connect(self.handle_server_message)
@@ -289,35 +372,88 @@ class ReceiverWindow(QMainWindow):
         self.server_thread = ServerListenerThread(self.signals)
         self.server_thread.start()
 
-        self.chat_list = QListWidget()
-        self.chat_list.currentItemChanged.connect(self.on_chat_selected)
-
-        self.chat_view = QTextBrowser()
-        self.chat_view.setOpenExternalLinks(False)
-
-        left_panel = QWidget()
-        left_layout = QVBoxLayout(left_panel)
-        left_layout.addWidget(QLabel("Gépek / chat-ek"))
-        left_layout.addWidget(self.chat_list)
-
-        right_panel = QWidget()
-        right_layout = QVBoxLayout(right_panel)
-        self.connection_label = QLabel("Kapcsolat: csatlakozás...")
-        right_layout.addWidget(self.connection_label)
-        right_layout.addWidget(self.chat_view)
-
-        splitter = QSplitter()
-        splitter.addWidget(left_panel)
-        splitter.addWidget(right_panel)
-        splitter.setSizes([280, 760])
-        self.setCentralWidget(splitter)
-
+        self.build_ui()
         self.setup_tray()
         self.load_recent_messages()
 
         self.reminder_timer = QTimer(self)
         self.reminder_timer.timeout.connect(self.check_important_reminders)
         self.reminder_timer.start(60_000)
+
+    def build_ui(self):
+        root = QWidget()
+        root_layout = QVBoxLayout(root)
+        root_layout.setContentsMargins(14, 14, 14, 14)
+        root_layout.setSpacing(12)
+
+        top_bar = QWidget()
+        top_bar.setStyleSheet("""
+            QWidget {
+                background: transparent;
+            }
+        """)
+        top_layout = QHBoxLayout(top_bar)
+        top_layout.setContentsMargins(0, 0, 0, 0)
+
+        title_wrap = QVBoxLayout()
+        self.title_label = QLabel(self.app_name)
+        self.title_label.setStyleSheet("font-size: 24px; font-weight: 700;")
+        self.subtitle_label = QLabel(f"Gép: {MACHINE_NAME}")
+        self.subtitle_label.setStyleSheet("font-size: 12px; color: #64748b;")
+        title_wrap.addWidget(self.title_label)
+        title_wrap.addWidget(self.subtitle_label)
+
+        self.connection_label = QLabel("Kapcsolat: csatlakozás...")
+        self.connection_label.setStyleSheet("""
+            QLabel {
+                padding: 8px 12px;
+                border-radius: 999px;
+                background: rgba(37, 99, 235, 0.12);
+                color: #2563eb;
+                font-weight: 600;
+            }
+        """)
+
+        top_layout.addLayout(title_wrap)
+        top_layout.addStretch()
+        top_layout.addWidget(self.connection_label)
+
+        self.chat_list = QListWidget()
+        self.chat_list.currentItemChanged.connect(self.on_chat_selected)
+        self.chat_list.setMinimumWidth(300)
+
+        self.chat_view = QTextBrowser()
+        self.chat_view.setOpenExternalLinks(False)
+
+        left_panel = QWidget()
+        left_layout = QVBoxLayout(left_panel)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(10)
+
+        left_header = QLabel("Beszélgetések")
+        left_header.setStyleSheet("font-size: 16px; font-weight: 700;")
+        left_layout.addWidget(left_header)
+        left_layout.addWidget(self.chat_list)
+
+        right_panel = QWidget()
+        right_layout = QVBoxLayout(right_panel)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(10)
+
+        self.chat_header = QLabel("Válassz beszélgetést")
+        self.chat_header.setStyleSheet("font-size: 16px; font-weight: 700;")
+        right_layout.addWidget(self.chat_header)
+        right_layout.addWidget(self.chat_view)
+
+        splitter = QSplitter()
+        splitter.addWidget(left_panel)
+        splitter.addWidget(right_panel)
+        splitter.setSizes([320, 820])
+
+        root_layout.addWidget(top_bar)
+        root_layout.addWidget(splitter)
+
+        self.setCentralWidget(root)
 
     def setup_tray(self):
         self.tray_icon = QSystemTrayIcon(self)
@@ -345,19 +481,20 @@ class ReceiverWindow(QMainWindow):
         try:
             data = http_get_json(f"/client/messages/{MACHINE_NAME}?limit=20")
             for item in data:
-                sender = item.get("sender_display_name") or item["sender_machine"]
+                sender_name = item.get("sender_display_name") or item["sender_machine"]
                 msg = {
                     "message_id": item["id"],
-                    "sender": sender,
+                    "sender": sender_name,
+                    "sender_machine": item["sender_machine"],
                     "text": item["text"],
                     "important": item["is_important"],
                     "timestamp": item["created_at"],
                     "direction": "in",
                     "read_sent": item["status"] == "read",
                 }
-                self.chats.setdefault(sender, []).append(msg)
+                self.chats.setdefault(sender_name, []).append(msg)
 
-            self.refresh_chat_list()
+            self.refresh_chat_list(preserve_selection=False)
         except Exception as e:
             print("[Receiver] History betöltési hiba:", e)
 
@@ -391,15 +528,16 @@ class ReceiverWindow(QMainWindow):
             return
 
         message_id = payload["message_id"]
-        real_sender_machine = payload["sender_machine"]
-        sender = payload.get("sender_display_name") or real_sender_machine
+        sender_machine = payload["sender_machine"]
+        sender_name = payload.get("sender_display_name") or sender_machine
         text = payload["text"]
         important = payload["is_important"]
         timestamp = payload["created_at"]
 
         msg = {
             "message_id": message_id,
-            "sender": sender,
+            "sender": sender_name,
+            "sender_machine": sender_machine,
             "text": text,
             "important": important,
             "timestamp": timestamp,
@@ -407,21 +545,22 @@ class ReceiverWindow(QMainWindow):
             "read_sent": False,
         }
 
-        self.chats.setdefault(sender, []).append(msg)
-        self.unread.setdefault(sender, 0)
+        self.chats.setdefault(sender_name, []).append(msg)
+        self.unread.setdefault(sender_name, 0)
 
-        if sender != self.current_chat or not self.isActiveWindow():
-            self.unread[sender] += 1
+        if sender_name != self.current_chat or not self.isActiveWindow():
+            self.unread[sender_name] += 1
 
         if important:
             self.unread_important[message_id] = {
-                "sender": sender,
+                "sender": sender_name,
                 "text": text,
                 "last_reminder": datetime.min,
             }
 
-        self.refresh_chat_list()
-        if sender == self.current_chat:
+        self.refresh_chat_list(preserve_selection=True)
+
+        if sender_name == self.current_chat:
             self.render_current_chat()
 
         self.update_tray_icon()
@@ -429,16 +568,16 @@ class ReceiverWindow(QMainWindow):
         short_text = text if len(text) <= 180 else text[:177] + "..."
         if important:
             self.tray_icon.showMessage(
-                f"{self.app_name} - FONTOS - {sender}",
+                f"{self.app_name} - FONTOS - {sender_name}",
                 short_text,
                 QSystemTrayIcon.Critical,
                 10000,
             )
             self.restore_from_tray()
-            ImportantAlertDialog(sender, text, self.dark, self.app_name).show_centered()
+            ImportantAlertDialog(sender_name, text, self.dark, self.app_name).show_centered()
         else:
             self.tray_icon.showMessage(
-                f"{self.app_name} - Új üzenet: {sender}",
+                f"{self.app_name} - Új üzenet: {sender_name}",
                 short_text,
                 QSystemTrayIcon.Information,
                 7000,
@@ -457,46 +596,87 @@ class ReceiverWindow(QMainWindow):
                 )
                 item["last_reminder"] = now
 
-    def refresh_chat_list(self):
-        current = self.current_chat
-        self.chat_list.clear()
+    def refresh_chat_list(self, preserve_selection: bool = True):
+        if self._refreshing_chat_list:
+            return
 
-        for sender in sorted(self.chats.keys(), key=lambda s: s.lower()):
-            unread_count = self.unread.get(sender, 0)
-            label = sender if unread_count == 0 else f"{sender} ({unread_count})"
+        self._refreshing_chat_list = True
+        selected_chat = self.current_chat if preserve_selection else None
 
-            item = QListWidgetItem(label)
-            item.setData(Qt.UserRole, sender)
+        try:
+            self.chat_list.blockSignals(True)
+            self.chat_list.clear()
 
-            if unread_count > 0:
+            chats_sorted = sorted(
+                self.chats.keys(),
+                key=lambda s: (
+                    0 if self.unread.get(s, 0) > 0 else 1,
+                    s.lower()
+                )
+            )
+
+            selected_item_to_restore = None
+
+            for sender in chats_sorted:
+                unread_count = self.unread.get(sender, 0)
+                last_text = self.chats[sender][-1]["text"] if self.chats[sender] else ""
+                preview = last_text[:36] + "..." if len(last_text) > 36 else last_text
+
+                label = sender
+                if unread_count > 0:
+                    label += f" ({unread_count})"
+                if preview:
+                    label += f"\n{preview}"
+
+                item = QListWidgetItem(label)
+                item.setData(Qt.UserRole, sender)
+
                 font = QFont()
-                font.setBold(True)
+                font.setBold(unread_count > 0)
                 item.setFont(font)
 
-            self.chat_list.addItem(item)
+                self.chat_list.addItem(item)
 
-        if current:
-            for i in range(self.chat_list.count()):
-                item = self.chat_list.item(i)
-                if item.data(Qt.UserRole) == current:
-                    self.chat_list.setCurrentItem(item)
-                    break
+                if selected_chat and sender == selected_chat:
+                    selected_item_to_restore = item
+
+            if selected_item_to_restore is not None:
+                self.chat_list.setCurrentItem(selected_item_to_restore)
+            elif self.chat_list.count() > 0 and self.current_chat is None:
+                self.chat_list.setCurrentRow(0)
+                item = self.chat_list.currentItem()
+                if item:
+                    self.current_chat = item.data(Qt.UserRole)
+
+        finally:
+            self.chat_list.blockSignals(False)
+            self._refreshing_chat_list = False
 
     def on_chat_selected(self, current, previous):
+        if self._refreshing_chat_list:
+            return
+
         if not current:
             self.current_chat = None
+            self.chat_header.setText("Válassz beszélgetést")
             self.chat_view.clear()
             return
 
         sender = current.data(Qt.UserRole)
+        if sender == self.current_chat and self.chat_view.toPlainText():
+            return
+
         self.current_chat = sender
+        self.chat_header.setText(sender)
         self.unread[sender] = 0
-        self.refresh_chat_list()
-        self.render_current_chat()
+
         self.mark_visible_messages_as_read(sender)
+        self.render_current_chat()
+        self.refresh_chat_list(preserve_selection=True)
         self.update_tray_icon()
 
     def mark_visible_messages_as_read(self, sender: str):
+        changed = False
         for msg in self.chats.get(sender, []):
             if msg["direction"] != "in":
                 continue
@@ -508,6 +688,10 @@ class ReceiverWindow(QMainWindow):
                 self.server_thread.send_read(message_id)
                 msg["read_sent"] = True
                 self.unread_important.pop(message_id, None)
+                changed = True
+
+        if changed:
+            self.update_tray_icon()
 
     def render_current_chat(self):
         if not self.current_chat:
@@ -515,33 +699,74 @@ class ReceiverWindow(QMainWindow):
             return
 
         messages = self.chats.get(self.current_chat, [])
-        html = ["<div style='font-family:Segoe UI;'>"]
+        html = [
+            "<div style='font-family: Segoe UI, Arial; padding: 4px;'>"
+        ]
+
+        dark_in_bg = "#1f2937"
+        dark_out_bg = "#1d4ed8"
+        dark_important_bg = "#3f1d1d"
+        dark_border = "#374151"
+        dark_meta = "#94a3b8"
+        dark_text = "#e5e7eb"
+        dark_out_text = "#ffffff"
+
+        light_in_bg = "#ffffff"
+        light_out_bg = "#dbeafe"
+        light_important_bg = "#fff1f2"
+        light_border = "#e2e8f0"
+        light_meta = "#64748b"
+        light_text = "#0f172a"
 
         for msg in messages:
-            badge = ""
-            bubble_bg = "#2b2d31" if self.dark else "#ffffff"
-            border = "#3b3f45" if self.dark else "#d1d5db"
-            meta = "#9ca3af" if self.dark else "#6b7280"
-            text_color = "#e8eaed" if self.dark else "#111827"
+            is_in = msg["direction"] == "in"
+            align = "left" if is_in else "right"
 
+            if self.dark:
+                bg = dark_in_bg if is_in else dark_out_bg
+                border = dark_border
+                text_color = dark_text if is_in else dark_out_text
+                meta_color = dark_meta
+                if msg["important"]:
+                    bg = dark_important_bg
+                    border = "#7f1d1d"
+            else:
+                bg = light_in_bg if is_in else light_out_bg
+                border = light_border
+                text_color = light_text
+                meta_color = light_meta
+                if msg["important"]:
+                    bg = light_important_bg
+                    border = "#fda4af"
+
+            badge = ""
             if msg["important"]:
                 badge = (
-                    "<div style='display:inline-block; background:#7f1d1d; color:#fecaca; padding:4px 8px; border-radius:10px; font-size:12px; font-weight:bold; margin-bottom:6px;'>FONTOS</div>"
-                    if self.dark else
-                    "<div style='display:inline-block; background:#fee2e2; color:#b91c1c; padding:4px 8px; border-radius:10px; font-size:12px; font-weight:bold; margin-bottom:6px;'>FONTOS</div>"
+                    "<div style='display:inline-block; margin-bottom:6px; "
+                    "padding:4px 8px; border-radius:999px; font-size:11px; font-weight:700; "
+                    "background:#fee2e2; color:#b91c1c;'>FONTOS</div>"
                 )
-                bubble_bg = "#3a2323" if self.dark else "#fff7f7"
-                border = "#7f1d1d" if self.dark else "#fca5a5"
 
             html.append(f"""
-                <div style="margin-bottom:14px;">
-                    {badge}
-                    <div style="background:{bubble_bg}; border:1px solid {border}; border-radius:14px; padding:10px 12px;">
-                        <div style="font-size:12px; color:{meta}; margin-bottom:6px;">
-                            {self.escape_html(msg["sender"])} • {self.escape_html(msg["timestamp"])}
-                        </div>
-                        <div style="font-size:14px; color:{text_color}; white-space:pre-wrap;">
-                            {self.escape_html(msg["text"])}
+                <div style="margin-bottom: 14px; text-align: {align};">
+                    <div style="display:inline-block; max-width: 75%; text-align:left;">
+                        {badge}
+                        <div style="
+                            background:{bg};
+                            border:1px solid {border};
+                            border-radius:18px;
+                            padding:10px 12px;
+                            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+                        ">
+                            <div style="font-size:11px; color:{meta_color}; margin-bottom:6px; font-weight:600;">
+                                {self.escape_html(msg['sender'])}
+                            </div>
+                            <div style="font-size:14px; color:{text_color}; white-space:pre-wrap; line-height:1.45;">
+                                {self.escape_html(msg['text'])}
+                            </div>
+                            <div style="font-size:10px; color:{meta_color}; margin-top:8px; text-align:right;">
+                                {self.escape_html(msg['timestamp'])}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -560,7 +785,7 @@ class ReceiverWindow(QMainWindow):
         else:
             self.tray_icon.setIcon(self.icon_normal)
             self.setWindowIcon(self.icon_normal)
-            self.tray_icon.setToolTip(f"{self.app_name}")
+            self.tray_icon.setToolTip(self.app_name)
 
     def request_full_exit(self):
         approved = request_admin_close_approval()
@@ -592,9 +817,9 @@ class ReceiverWindow(QMainWindow):
     @staticmethod
     def escape_html(text: str) -> str:
         return (
-            text.replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;")
+            str(text).replace("&", "&amp;")
+                     .replace("<", "&lt;")
+                     .replace(">", "&gt;")
         )
 
 
