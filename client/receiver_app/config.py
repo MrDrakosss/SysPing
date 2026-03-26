@@ -11,6 +11,7 @@ _RUNTIME_CONFIG = read_config()
 SERVER_HTTP = _RUNTIME_CONFIG["http_url"]
 SERVER_WS = _RUNTIME_CONFIG["ws_url"]
 MACHINE_NAME = _RUNTIME_CONFIG["machine_name"]
+AUTO_START = _RUNTIME_CONFIG["auto_start"]
 START_MINIMIZED = _RUNTIME_CONFIG["start_minimized"]
 
 APP_BRANDING = fetch_branding(SERVER_HTTP)
@@ -26,6 +27,7 @@ __all__ = [
     "SERVER_WS",
     "APP_BRANDING",
     "APP_NAME",
+    "AUTO_START",
     "START_MINIMIZED",
     "RECENT_MESSAGES_LIMIT",
     "IMPORTANT_REMINDER_MINUTES",

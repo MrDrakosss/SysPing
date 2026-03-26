@@ -1,0 +1,18 @@
+pip install pyinstaller
+
+Without icon:
+pyinstaller --noconfirm --onefile --windowed --name SysPingReceiver client\receiver_client.py
+
+With icon:
+pyinstaller --noconfirm --onefile --windowed --name SysPingReceiver --icon client\assets\app.ico client\receiver_client.py
+
+Installer build:
+& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "client\installer\SysPing.iss"
+
+--> Ide rakja a kész installert: client\installer\output\SysPingInstaller.exe
+
+
+Egyben:
+pip install pyinstaller
+pyinstaller --noconfirm --onefile --windowed --name SysPingReceiver client\receiver_client.py
+& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "client\installer\SysPing.iss"
