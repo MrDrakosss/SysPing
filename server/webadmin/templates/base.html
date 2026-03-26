@@ -1,274 +1,153 @@
 <!DOCTYPE html>
-<html lang="hu">
+<html lang="hu" class="h-full bg-slate-100">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{ settings.app_name }} - Web Admin</title>
-    <style>
-        :root {
-            --primary: {{ settings.primary_color or '#2563eb' }};
-            --secondary: {{ settings.secondary_color or '#1e293b' }};
-            --bg: #f5f7fb;
-            --card: #ffffff;
-            --text: #111827;
-            --muted: #6b7280;
-            --border: #e5e7eb;
-            --success: #16a34a;
-            --danger: #dc2626;
-            --warning: #f59e0b;
-        }
-        * { box-sizing: border-box; }
-        body {
-            margin: 0;
-            font-family: "Segoe UI", Arial, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-        }
-        .layout {
-            display: grid;
-            grid-template-columns: 260px 1fr;
-            min-height: 100vh;
-        }
-        .sidebar {
-            background: linear-gradient(180deg, var(--secondary), #0f172a);
-            color: white;
-            padding: 24px 18px;
-            transition: transform .2s ease;
-        }
-        .brand { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
-        .company { color: rgba(255,255,255,0.72); font-size: 14px; margin-bottom: 24px; }
-        .nav a {
-            display: block;
-            color: white;
-            text-decoration: none;
-            padding: 11px 12px;
-            border-radius: 12px;
-            margin-bottom: 8px;
-            background: rgba(255,255,255,0.06);
-        }
-        .nav a:hover { background: rgba(255,255,255,0.12); }
-        .main { padding: 24px; }
-        .topbar {
-            display:flex;
-            align-items:center;
-            justify-content:space-between;
-            gap:14px;
-            margin-bottom: 18px;
-        }
-        .menu-toggle {
-            display:none;
-            background: var(--primary);
-            color:white;
-            border:none;
-            border-radius:10px;
-            padding:10px 12px;
-            font-weight:700;
-        }
-        .account-menu { position: relative; }
-        .account-btn {
-            border:none;
-            background:#fff;
-            border:1px solid var(--border);
-            border-radius:12px;
-            padding:10px 14px;
-            cursor:pointer;
-            font-weight:600;
-        }
-        .account-dropdown {
-            display:none;
-            position:absolute;
-            right:0;
-            top:calc(100% + 8px);
-            min-width:220px;
-            background:#fff;
-            border:1px solid var(--border);
-            border-radius:14px;
-            box-shadow:0 12px 30px rgba(15,23,42,.1);
-            padding:8px;
-            z-index:30;
-        }
-        .account-dropdown a {
-            display:block;
-            text-decoration:none;
-            color:var(--text);
-            padding:10px 12px;
-            border-radius:10px;
-        }
-        .account-dropdown a:hover { background:#f3f4f6; }
-        .account-menu.open .account-dropdown { display:block; }
 
-        .page-header {
-            display:flex;
-            justify-content:space-between;
-            align-items:center;
-            gap:16px;
-            margin-bottom:24px;
-            flex-wrap:wrap;
-        }
-        .page-title { font-size:28px; font-weight:700; }
-        .page-subtitle { color: var(--muted); margin-top:6px; }
-        .badge {
-            display:inline-block;
-            background:#e0f2fe;
-            color:#075985;
-            border-radius:999px;
-            padding:8px 12px;
-            font-size:13px;
-            font-weight:600;
-        }
-        .card {
-            background:var(--card);
-            border:1px solid var(--border);
-            border-radius:18px;
-            padding:18px;
-            box-shadow:0 8px 20px rgba(15, 23, 42, 0.05);
-            margin-bottom:18px;
-        }
-        .grid { display:grid; gap:18px; }
-        .grid-4 { grid-template-columns: repeat(4, minmax(180px, 1fr)); }
-        .grid-2 { grid-template-columns: repeat(2, minmax(240px, 1fr)); }
-        .section-title { font-size:18px; font-weight:700; margin-bottom:14px; }
-        input[type="text"], input[type="email"], input[type="password"], input[type="color"], textarea, select {
-            width:100%;
-            padding:10px 12px;
-            border-radius:10px;
-            border:1px solid var(--border);
-            font-size:14px;
-            background:white;
-        }
-        textarea { min-height:100px; resize:vertical; }
-        button {
-            background:var(--primary);
-            color:white;
-            border:none;
-            border-radius:10px;
-            padding:10px 14px;
-            font-weight:700;
-            cursor:pointer;
-        }
-        table { width:100%; border-collapse:collapse; }
-        th, td {
-            padding:12px 10px;
-            text-align:left;
-            border-bottom:1px solid var(--border);
-            vertical-align:top;
-            font-size:14px;
-        }
-        th { color:var(--muted); font-weight:600; }
-        .stat-value { font-size:28px; font-weight:700; }
-        .muted { color:var(--muted); }
-        .success { color:var(--success); }
-        .danger { color:var(--danger); }
-        .warning { color:var(--warning); }
-        .stack { display:flex; flex-direction:column; gap:12px; }
-        .mobile-cards { display:none; }
-        .sidebar-backdrop {
-            display:none;
-            position:fixed;
-            inset:0;
-            background:rgba(15,23,42,.45);
-            z-index:20;
-        }
-
-        @media (max-width: 1100px) {
-            .grid-4, .grid-2 { grid-template-columns:1fr; }
-        }
-        @media (max-width: 860px) {
-            .layout { grid-template-columns: 1fr; }
-            .sidebar {
-                position:fixed;
-                inset:0 auto 0 0;
-                width:260px;
-                z-index:25;
-                transform:translateX(-100%);
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: "{{ settings.primary_color or '#2563eb' }}",
+                        branddark: "{{ settings.secondary_color or '#1e293b' }}"
+                    },
+                    boxShadow: {
+                        soft: "0 10px 30px rgba(15,23,42,0.08)"
+                    }
+                }
             }
-            .sidebar.open { transform:translateX(0); }
-            .sidebar-backdrop.open { display:block; }
-            .menu-toggle { display:inline-block; }
         }
-        @media (max-width: 760px) {
-            table.desktop-table { display:none; }
-            .mobile-cards { display:block; }
-            .main { padding:16px; }
-            .page-title { font-size:24px; }
-        }
-    </style>
+    </script>
 </head>
-<body>
-<div class="sidebar-backdrop" id="sidebarBackdrop" onclick="closeSidebar()"></div>
 
-<div class="layout">
-    <aside class="sidebar" id="sidebar">
-        <div class="brand">{{ settings.app_name }}</div>
-        <div class="company">{{ settings.company_name or 'Web Admin' }}</div>
-
-        <nav class="nav">
-            <a href="/webadmin/">Dashboard</a>
-            <a href="/webadmin/messages">Üzenetek</a>
-            {% if current_user.is_superadmin %}
-            <a href="/webadmin/message-log">Teljes üzenet log</a>
-            {% endif %}
-            <a href="/webadmin/devices">Eszközök</a>
-            {% if current_user.is_superadmin or current_user.can_manage_admin_users %}
-            <a href="/webadmin/users">Admin felhasználók</a>
-            {% endif %}
-            <a href="/webadmin/settings">Beállítások</a>
-        </nav>
-    </aside>
-
-    <main class="main">
-        <div class="topbar">
-            <button class="menu-toggle" type="button" onclick="toggleSidebar()">☰ Menü</button>
-
-            <div class="account-menu" id="accountMenu">
-                <button class="account-btn" type="button" onclick="toggleAccountMenu()">
-                    {{ current_user.display_name or current_user.username }}
-                </button>
-                <div class="account-dropdown">
-                    <a href="/webadmin/account">Saját adatok</a>
-                    <a href="/webadmin/logout">Kijelentkezés</a>
-                </div>
-            </div>
+<body class="h-full text-slate-900">
+    <div class="min-h-full">
+        <div id="sidebarBackdrop" class="fixed inset-0 z-40 hidden bg-slate-950/50 lg:hidden" onclick="closeSidebar()">
         </div>
 
-        <div class="page-header">
-            <div>
-                <div class="page-title">{% block page_title %}{% endblock %}</div>
-                <div class="page-subtitle">{% block page_subtitle %}{% endblock %}</div>
+        <aside id="sidebar"
+            class="fixed inset-y-0 left-0 z-50 w-72 -translate-x-full transform overflow-y-auto bg-gradient-to-b from-branddark to-slate-950 px-5 py-6 text-white transition-transform duration-200 lg:translate-x-0">
+            <div class="mb-8">
+                <div class="text-2xl font-bold tracking-tight">{{ settings.app_name }}</div>
+                <div class="mt-1 text-sm text-slate-300">{{ settings.company_name or 'Web Admin' }}</div>
             </div>
-            <div class="account-menu" id="accountMenu">
-                <button class="account-btn" type="button" onclick="toggleAccountMenu()">
-                    {{ current_user.display_name or current_user.username }}
-                </button>
-                <div class="account-dropdown">
-                    <a href="/webadmin/account">Saját adatok</a>
-                    <a href="/webadmin/logout">Kijelentkezés</a>
+
+            <nav class="space-y-2">
+                <a href="/webadmin/"
+                    class="block rounded-xl bg-white/10 px-4 py-3 text-sm font-medium hover:bg-white/15">
+                    Dashboard
+                </a>
+                <a href="/webadmin/messages"
+                    class="block rounded-xl bg-white/10 px-4 py-3 text-sm font-medium hover:bg-white/15">
+                    Üzenetek
+                </a>
+
+                {% if current_user.is_superadmin %}
+                <a href="/webadmin/message-log"
+                    class="block rounded-xl bg-white/10 px-4 py-3 text-sm font-medium hover:bg-white/15">
+                    Teljes üzenet log
+                </a>
+                {% endif %}
+
+                <a href="/webadmin/devices"
+                    class="block rounded-xl bg-white/10 px-4 py-3 text-sm font-medium hover:bg-white/15">
+                    Eszközök
+                </a>
+
+                {% if current_user.is_superadmin or current_user.can_manage_admin_users %}
+                <a href="/webadmin/users"
+                    class="block rounded-xl bg-white/10 px-4 py-3 text-sm font-medium hover:bg-white/15">
+                    Admin felhasználók
+                </a>
+                {% endif %}
+
+                <a href="/webadmin/settings"
+                    class="block rounded-xl bg-white/10 px-4 py-3 text-sm font-medium hover:bg-white/15">
+                    Beállítások
+                </a>
+            </nav>
+        </aside>
+
+        <div class="lg:pl-72">
+            <header class="sticky top-0 z-30 border-b border-slate-200 bg-white/90 backdrop-blur">
+                <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+                    <div class="flex items-center gap-3">
+                        <button type="button"
+                            class="inline-flex items-center rounded-xl bg-brand px-3 py-2 text-sm font-semibold text-white shadow-sm lg:hidden"
+                            onclick="toggleSidebar()">
+                            ☰ Menü
+                        </button>
+
+                        <div>
+                            <div class="text-lg font-semibold">{% block page_title %}{% endblock %}</div>
+                            <div class="text-sm text-slate-500">{% block page_subtitle %}{% endblock %}</div>
+                        </div>
+                    </div>
+
+                    <div class="relative" id="accountMenu">
+                        <button type="button" onclick="toggleAccountMenu()"
+                            class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
+                            <span
+                                class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-brand/10 text-brand">
+                                {{ (current_user.display_name or current_user.username)[0]|upper }}
+                            </span>
+                            <span class="hidden sm:inline">{{ current_user.display_name or current_user.username
+                                }}</span>
+                            <span>▾</span>
+                        </button>
+
+                        <div id="accountDropdown"
+                            class="absolute right-0 mt-2 hidden w-64 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-soft">
+                            <div class="border-b border-slate-100 px-4 py-3">
+                                <div class="font-semibold text-slate-900">{{ current_user.display_name or
+                                    current_user.username }}</div>
+                                <div class="text-sm text-slate-500">{{ current_user.email }}</div>
+                            </div>
+                            <div class="p-2">
+                                <a href="/webadmin/account"
+                                    class="block rounded-xl px-3 py-2 text-sm text-slate-700 hover:bg-slate-100">
+                                    Saját adatok
+                                </a>
+                                <a href="/webadmin/logout"
+                                    class="block rounded-xl px-3 py-2 text-sm text-rose-600 hover:bg-rose-50">
+                                    Kijelentkezés
+                                </a>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            </header>
+
+            <main class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+                {% block content %}{% endblock %}
+            </main>
         </div>
+    </div>
 
-        {% block content %}{% endblock %}
-    </main>
-</div>
-
-<script>
-function toggleSidebar() {
-    document.getElementById('sidebar').classList.toggle('open');
-    document.getElementById('sidebarBackdrop').classList.toggle('open');
-}
-function closeSidebar() {
-    document.getElementById('sidebar').classList.remove('open');
-    document.getElementById('sidebarBackdrop').classList.remove('open');
-}
-function toggleAccountMenu() {
-    document.getElementById('accountMenu').classList.toggle('open');
-}
-document.addEventListener('click', function (e) {
-    const menu = document.getElementById('accountMenu');
-    if (menu && !menu.contains(e.target)) {
-        menu.classList.remove('open');
-    }
-});
-</script>
+    <script>
+        function toggleSidebar() {
+            document.getElementById("sidebar").classList.toggle("-translate-x-full");
+            document.getElementById("sidebarBackdrop").classList.toggle("hidden");
+        }
+        function closeSidebar() {
+            document.getElementById("sidebar").classList.add("-translate-x-full");
+            document.getElementById("sidebarBackdrop").classList.add("hidden");
+        }
+        function toggleAccountMenu() {
+            document.getElementById("accountDropdown").classList.toggle("hidden");
+        }
+        document.addEventListener("click", function (e) {
+            const menu = document.getElementById("accountMenu");
+            const dropdown = document.getElementById("accountDropdown");
+            if (menu && dropdown && !menu.contains(e.target)) {
+                dropdown.classList.add("hidden");
+            }
+        });
+    </script>
 </body>
+
 </html>

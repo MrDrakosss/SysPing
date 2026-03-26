@@ -1,142 +1,69 @@
 <!DOCTYPE html>
-<html lang="hu">
+<html lang="hu" class="h-full bg-slate-950">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{ settings.app_name }} - Bejelentkezés</title>
-    <style>
-        :root {
-            --primary: {{ settings.primary_color or '#2563eb' }};
-            --secondary: {{ settings.secondary_color or '#1e293b' }};
-            --bg1: #0f172a;
-            --bg2: #1e293b;
-            --card: #ffffff;
-            --text: #111827;
-            --muted: #6b7280;
-            --danger: #dc2626;
-            --border: #dbe3ee;
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: "{{ settings.primary_color or '#2563eb' }}",
+                        branddark: "{{ settings.secondary_color or '#1e293b' }}"
+                    }
+                }
+            }
         }
-
-        * { box-sizing: border-box; }
-
-        body {
-            margin: 0;
-            min-height: 100vh;
-            font-family: "Segoe UI", Arial, sans-serif;
-            background: linear-gradient(135deg, var(--bg1), var(--bg2));
-            display: grid;
-            place-items: center;
-            padding: 20px;
-        }
-
-        .card {
-            width: 100%;
-            max-width: 430px;
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 24px;
-            padding: 30px;
-            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.25);
-        }
-
-        .logo-wrap {
-            text-align: center;
-            margin-bottom: 16px;
-        }
-
-        .logo-wrap img {
-            max-width: 110px;
-            max-height: 110px;
-            object-fit: contain;
-        }
-
-        .title {
-            text-align: center;
-            font-size: 28px;
-            font-weight: 700;
-            color: var(--text);
-            margin-bottom: 6px;
-        }
-
-        .subtitle {
-            text-align: center;
-            color: var(--muted);
-            margin-bottom: 24px;
-        }
-
-        .field {
-            margin-bottom: 14px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 6px;
-            font-weight: 600;
-            color: var(--text);
-        }
-
-        input {
-            width: 100%;
-            padding: 12px;
-            border-radius: 12px;
-            border: 1px solid var(--border);
-            font-size: 14px;
-        }
-
-        button {
-            width: 100%;
-            padding: 12px;
-            border: none;
-            border-radius: 12px;
-            background: var(--primary);
-            color: white;
-            font-size: 15px;
-            font-weight: 700;
-            cursor: pointer;
-        }
-
-        button:hover { opacity: .95; }
-
-        .error {
-            background: #fef2f2;
-            color: var(--danger);
-            border: 1px solid #fecaca;
-            border-radius: 12px;
-            padding: 10px 12px;
-            margin-bottom: 16px;
-        }
-    </style>
+    </script>
 </head>
-<body>
-    <div class="card">
-        <div class="logo-wrap">
-            {% if settings.login_logo_path %}
-                <img src="{{ settings.login_logo_path }}" alt="Logo">
-            {% elif settings.app_icon_path %}
-                <img src="{{ settings.app_icon_path }}" alt="App icon">
-            {% endif %}
+
+<body class="min-h-full bg-gradient-to-br from-branddark via-slate-900 to-slate-950">
+    <div class="flex min-h-screen items-center justify-center px-4 py-10">
+        <div class="w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-white shadow-2xl">
+            <div class="px-8 pt-8 text-center">
+                {% if settings.login_logo_path %}
+                <img src="{{ settings.login_logo_path }}" alt="Logo" class="mx-auto mb-5 max-h-24 w-auto">
+                {% elif settings.app_icon_path %}
+                <img src="{{ settings.app_icon_path }}" alt="App icon" class="mx-auto mb-5 max-h-20 w-auto">
+                {% endif %}
+
+                <h1 class="text-3xl font-bold tracking-tight text-slate-900">{{ settings.app_name }}</h1>
+                <p class="mt-2 text-sm text-slate-500">{{ settings.company_name or 'Web Admin bejelentkezés' }}</p>
+            </div>
+
+            <div class="px-8 pb-8 pt-6">
+                {% if error %}
+                <div class="mb-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                    {{ error }}
+                </div>
+                {% endif %}
+
+                <form method="post" action="/webadmin/login" class="space-y-4">
+                    <div>
+                        <label for="username"
+                            class="mb-2 block text-sm font-medium text-slate-700">Felhasználónév</label>
+                        <input id="username" name="username" type="text" required
+                            class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none ring-0 transition focus:border-brand">
+                    </div>
+
+                    <div>
+                        <label for="password" class="mb-2 block text-sm font-medium text-slate-700">Jelszó</label>
+                        <input id="password" name="password" type="password" required
+                            class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none ring-0 transition focus:border-brand">
+                    </div>
+
+                    <button type="submit"
+                        class="w-full rounded-2xl bg-brand px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-95">
+                        Belépés
+                    </button>
+                </form>
+            </div>
         </div>
-
-        <div class="title">{{ settings.app_name }}</div>
-        <div class="subtitle">{{ settings.company_name or 'Web Admin bejelentkezés' }}</div>
-
-        {% if error %}
-        <div class="error">{{ error }}</div>
-        {% endif %}
-
-        <form method="post" action="/webadmin/login">
-            <div class="field">
-                <label for="username">Felhasználónév</label>
-                <input id="username" name="username" type="text" required>
-            </div>
-
-            <div class="field">
-                <label for="password">Jelszó</label>
-                <input id="password" name="password" type="password" required>
-            </div>
-
-            <button type="submit">Belépés</button>
-        </form>
     </div>
 </body>
+
 </html>
