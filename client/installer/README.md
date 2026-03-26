@@ -1,29 +1,27 @@
 # SysPing Client Installer – Build Guide
 
-Ez a dokumentáció a **SysPing kliens telepítő buildeléséhez** szükséges lépéseket tartalmazza Windows környezetben.
+This document covers the Windows build process for the SysPing receiver installer.
 
 ---
 
-## 📦 Követelmények
+## Requirements
 
-A buildhez az alábbiak szükségesek:
+You need:
 
-- Python 3.10+  
-- pip  
-- Inno Setup 6  
-- PyInstaller  
+- Python 3.10+
+- pip
+- PyInstaller
+- Inno Setup 6
 
 ---
 
-## 🐍 Python környezet előkészítése
-
-Ajánlott virtuális környezet használata:
+## Create a Python Virtual Environment
 
 ```bash
 python -m venv .venv
 ```
 
-Aktiválás:
+Activate it:
 
 ```bash
 .venv\Scripts\activate
@@ -31,73 +29,86 @@ Aktiválás:
 
 ---
 
-## 📥 Szükséges Python csomagok telepítése
+## Install Required Python Packages
 
-A projekt gyökerében:
+From the repository root:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Ha nincs requirements.txt, akkor minimum:
+If you want to install the minimum set manually:
 
 ```bash
-pip install PySide6 requests websockets pyinstaller
+pip install PySide6 websocket-client requests pyinstaller
 ```
 
 ---
 
-## ⚙️ PyInstaller (EXE build)
-
-A kliensből futtatható `.exe` készítése:
+## Build the Client EXE
 
 ```bash
 pyinstaller --noconfirm --onefile --windowed --name SysPingReceiver client\receiver_client.py
 ```
 
-Sikeres build után az exe itt lesz:
+Output:
 
-```
+```text
 dist\SysPingReceiver.exe
 ```
 
 ---
 
-## 🛠️ Inno Setup telepítése
+## Install Inno Setup
 
-Töltsd le és telepítsd:
+Download and install Inno Setup 6 from:
 
+```text
 https://jrsoftware.org/isdl.php
-
-Telepítés után az alapértelmezett útvonal:
-
 ```
+
+Default compiler path:
+
+```text
 C:\Program Files (x86)\Inno Setup 6\ISCC.exe
 ```
 
 ---
 
-## 📦 Installer build
-
-A telepítő elkészítése:
+## Build the Installer
 
 ```powershell
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "client\installer\SysPing.iss"
 ```
 
----
+Output:
 
-## 📁 Kimenet
-
-A kész installer itt található:
-
-```
+```text
 client\installer\output\SysPingInstaller.exe
 ```
 
 ---
 
-## 🚀 Silent telepítés (központi deploy)
+## Interactive Installation
+
+The installer wizard allows you to configure:
+
+- HTTP server URL
+- WebSocket server URL
+- machine-level autostart
+- start minimized / tray startup
+
+The installer writes these values to:
+
+```text
+C:\ProgramData\SysPing\config.xml
+```
+
+---
+
+## Silent Installation
+
+Example silent deployment:
 
 ```bash
 SysPingInstaller.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART ^
@@ -107,9 +118,18 @@ SysPingInstaller.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART ^
 /STARTMINIMIZED=1
 ```
 
+### Parameters
+
+| Parameter | Description |
+|---|---|
+| `/SERVERHTTP` | HTTP API base URL |
+| `/SERVERWS` | WebSocket base URL |
+| `/AUTOSTART` | `1` enables machine-level autostart |
+| `/STARTMINIMIZED` | `1` starts the client in the tray / minimized mode |
+
 ---
 
-## ☁️ Intune telepítési parancs
+## Intune Install Command
 
 ```powershell
 Start-Process -FilePath ".\SysPingInstaller.exe" -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SERVERHTTP="http://192.168.1.10:8080" /SERVERWS="ws://192.168.1.10:8080/ws/client" /AUTOSTART=1 /STARTMINIMIZED=1' -Wait
@@ -117,7 +137,7 @@ Start-Process -FilePath ".\SysPingInstaller.exe" -ArgumentList '/VERYSILENT /SUP
 
 ---
 
-## 🔁 Teljes build folyamat (röviden)
+## Full Build Flow
 
 ```bash
 pip install -r requirements.txt
@@ -127,17 +147,24 @@ pyinstaller --noconfirm --onefile --windowed --name SysPingReceiver client\recei
 
 ---
 
-## ⚠️ Gyakori hibák
+## Common Issues
 
-### ❌ "exe not found"
-→ előbb futtasd a PyInstaller buildet
+### EXE not found
+Build the executable first with PyInstaller.
 
-### ❌ pip nem elérhető
-→ telepítsd:
+### `pip` is not available
+Install or bootstrap it:
 
 ```bash
 python -m ensurepip --upgrade
 ```
 
-### ❌ ISCC.exe nem található
-→ ellenőrizd az Inno Setup telepítési útvonalát
+### `ISCC.exe` not found
+Check the local Inno Setup install path.
+
+### PowerShell does not execute `ISCC.exe`
+Use the call operator:
+
+```powershell
+& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "client\installer\SysPing.iss"
+```

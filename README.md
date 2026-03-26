@@ -1,117 +1,151 @@
-# Central Messenger
+# SysPing
 
-Központi szerveres belső üzenetküldő rendszer admin és kliens alkalmazással.
+SysPing is a centralized internal messaging system for Windows endpoints with a Linux-hosted backend, a web-based admin dashboard, and a receiver client that runs in the background on user machines.
 
-A projekt célja, hogy a szerveren nyilvántartott gépek között lehessen központilag üzeneteket küldeni, online/offline állapotot kezelni, valamint a fontos üzeneteket kiemelten jelezni. A rendszer úgy lett kitalálva, hogy az admin oldalról ne kelljen IP-címeket kézzel megadni, hanem a szerveren ismert gépek közül lehessen választani, keresni, tömegesen üzenni, és az offline gépek is megkapják a számukra küldött üzeneteket, amikor újra online állapotba kerülnek.
+The system is designed for internal IT communication scenarios where administrators need to send messages to known devices, handle offline delivery, track delivery and read status, and manage endpoint metadata from a central server.
 
-## Fő funkciók
+---
 
-### Központi szerver
-- Linuxon futó központi alkalmazás
-- MySQL adatbázis használata
-- ismert gépek nyilvántartása
-- online/offline státusz követése
-- offline üzenetsor kezelése
-- kézbesítési és olvasási állapot tárolása
-- admin kliens kiszolgálása API-n keresztül
-- klienskapcsolatok kezelése WebSocketen
+## Features
 
-### Receiver kliens
-- háttérben futó fogadó alkalmazás
-- automatikus csatlakozás a szerverhez
-- online státusz küldése a szervernek
-- üzenetek fogadása chat-szerű nézetben
-- gépenként külön beszélgetések
-- Windows tray ikon
-- olvasatlan üzenet jelzés
-- normál üzenetnél Windows popup
-- fontos üzenetnél kiemelt figyelmeztetés
-- fontos, olvasatlan üzenet esetén 10 percenként ismételt értesítés
+### Server
+- FastAPI-based backend
+- MySQL / MariaDB database support
+- Central device registry
+- Online / offline device tracking
+- Delivery queue for offline devices
+- Delivery and read status tracking
+- REST API for admin and client communication
+- WebSocket-based real-time delivery
+- Web admin dashboard
+- Branding support
+- Admin user management
+- Message history and statistics
 
-### Admin kliens
-- küldés és fogadás is támogatott
-- kereshető géplista a szerverről
-- küldés egy vagy több gépnek
-- offline gépnek küldött üzenet sorba állítása
-- gépenként külön chatnézet
-- ismert gépek kezelése
-- tulajdonos mező kezelése
-- megjegyzés mező kezelése
-- már nem létező gépek törlése vagy inaktiválása
+### Receiver Client
+- Background-running Windows client
+- System tray integration
+- Automatic server connection
+- Chat-like message interface
+- Separate conversations by sender
+- Unread message indicator
+- Standard notification for normal messages
+- Elevated alert dialog for important messages
+- Repeated reminder for unread important messages
+- Local configuration and cache support
+- Installable package support
 
-## Projektstruktúra
+### Web Admin
+- Login-protected dashboard
+- Device search and metadata management
+- Message sending to one or multiple devices
+- Own sent-message view
+- Full message log for superadmins
+- Delivery and read timestamps
+- Branding and settings management
+- Responsive mobile-friendly UI
+
+---
+
+## Repository Layout
 
 ```text
-central_messenger/
-├─ README.md
+SysPing/
+├─ client/
+│  ├─ README.md
+│  ├─ receiver_client.py
+│  ├─ common.py
+│  ├─ installer/
+│  │  ├─ README.md
+│  │  └─ SysPing.iss
+│  └─ receiver_app/
 ├─ server/
 │  ├─ README.md
+│  ├─ api/
+│  ├─ services/
+│  ├─ webadmin/
 │  ├─ main.py
 │  ├─ db.py
 │  ├─ models.py
 │  ├─ schemas.py
 │  └─ .env
-├─ client/
-│  ├─ README.md
-│  ├─ common.py
-│  ├─ admin_client.py
-│  ├─ receiver_client.py
-│  └─ assets/
-├─ requirements-server.txt
-└─ requirements-client.txt
+├─ README.md
+└─ requirements.txt
 ```
 
-## Melyik README mit tartalmaz
+---
 
-- Ez a fájl a rendszer áttekintését és a funkciókat írja le.
-- A `server/README.md` a szerver telepítését, Linuxos beállítását, adatbázis konfigurációját és automatikus indulását tartalmazza.
-- A `client/README.md` a kliensek telepítését, buildelését, konfigurációját és automatikus indulását tartalmazza.
+## Technology Stack
 
-## Technológiai javaslat
-
-### Szerver
+### Backend
 - Python
 - FastAPI
 - SQLAlchemy
-- MySQL vagy MariaDB
+- PyMySQL
 - Uvicorn
-- systemd Linuxon
+- MySQL / MariaDB
+- Jinja2
+- WebSockets
 
-### Kliens
+### Client
 - Python
 - PySide6
 - websocket-client
-- requests
 - PyInstaller
+- Inno Setup
 
-## Telepítési logika röviden
+---
 
-A teljes rendszer összeállításához:
-1. a szerver oldalon fel kell tenni a Python környezetet és az adatbázist,
-2. be kell állítani a szerver `.env` fájlját,
-3. el kell indítani vagy systemd alá kell tenni a szervert,
-4. a kliens oldalon fel kell tenni a kliens függőségeket,
-5. be kell állítani a szerver címét a kliens konfigurációban,
-6. a klienseket fejlesztői módban Pythonból vagy terítéshez EXE-ként kell futtatni.
+## Quick Start
 
-A részletes, konkrét parancsok és konfigurációk a két almappa README fájljaiban vannak összerakva.
+### 1. Server
+See [`server/README.md`](server/README.md) for:
+- Linux installation
+- Python environment setup
+- MySQL configuration
+- `.env` configuration
+- systemd service setup
+- Nginx reverse proxy
+- Apache reverse proxy
 
-## Ajánlott működési folyamat
+### 2. Client
+See [`client/README.md`](client/README.md) for:
+- development setup
+- configuration
+- installable client structure
+- cache and config storage
+- autostart behavior
+- packaging notes
 
-### Receiver gép
-A gép indulásakor a fogadó kliens automatikusan elindul, csatlakozik a szerverhez, online státuszba kerül, majd a szerver elküldi neki az esetleg korábban sorba állított üzeneteket.
+### 3. Installer Build
+See [`client/installer/README.md`](client/installer/README.md) for:
+- PyInstaller build
+- Inno Setup build
+- silent install parameters
+- Intune command example
 
-### Admin gép
-Az admin kliens a szerverről lekéri az ismert gépeket, kereshető listát mutat, és az admin onnan választ címzetteket. Ha a célgép offline, az üzenet nem vész el, hanem a szerver tárolja és később kézbesíti.
+---
 
-## További javasolt bővítések
-- jogosultságkezelés
-- audit log
-- kézbesítve / olvasva státusz vizuális megjelenítése
-- csoportos gépkategóriák
-- részleg alapú szűrés
-- Active Directory integráció
-- HTTPS / WSS és kliens hitelesítés
+## Current Architecture
 
-## Megjegyzés
-Ez a fő README szándékosan nem ismétli végig a teljes telepítési lépéssort. A tényleges telepítési és futtatási útmutatók külön vannak bontva a `server` és `client` mappák README fájljaiba, hogy később könnyebb legyen karbantartani.
+- The **server** stores devices, admin users, branding settings, and all messages.
+- The **receiver client** connects over WebSocket and receives real-time messages.
+- If a target device is offline, the server stores the message and delivers it when the device reconnects.
+- The **web admin** is the main operator interface for sending messages and reviewing message history.
+- The **receiver client** stores local configuration and message cache for faster startup and lighter history synchronization.
+
+---
+
+## Production Notes
+
+- Run the server behind a reverse proxy in production.
+- Use HTTPS / WSS in real deployments.
+- Store MySQL credentials in `server/.env`.
+- Deploy the Windows client through the installer for proper configuration, autostart, and uninstall support.
+- Use the silent installer parameters for centralized rollout tools such as Intune, PDQ Deploy, or GPO-based scripting.
+
+---
+
+## License
+
+Add your preferred license here before production release.

@@ -1,279 +1,317 @@
-# Central Messenger Server
+# SysPing Server
 
-Ez a dokumentáció a központi Linux szerver telepítését, konfigurálását és automatikus indítását írja le.
+This document describes how to install, configure, run, and deploy the SysPing server on Linux.
 
-A szerver feladata:
-- a kliensek WebSocket kapcsolatait kezelni,
-- nyilvántartani az ismert gépeket,
-- online/offline státuszt követni,
-- az üzeneteket MySQL adatbázisban tárolni,
-- az offline gépeknek szánt üzeneteket sorban tartani,
-- az admin kliens számára API-t biztosítani.
+---
 
-## Követelmények
+## Overview
 
-- Linux szerver
-- Python 3.11 vagy újabb
-- MySQL 8 vagy MariaDB
-- systemd
-- hálózati elérés a választott szerverporton, például `8080`
+The SysPing server is the central component of the platform. It is responsible for:
 
-## Ajánlott szerverstruktúra
+- storing known devices
+- tracking online / offline device state
+- storing and delivering messages
+- storing delivery and read timestamps
+- exposing REST API endpoints
+- handling WebSocket client sessions
+- serving the web admin interface
+- storing branding and admin-user settings
+
+---
+
+## Requirements
+
+- Linux server
+- Python 3.10+
+- pip
+- virtual environment support
+- MySQL or MariaDB
+- reverse proxy (Nginx or Apache) for production
+
+---
+
+## Directory Structure
+
+Typical server structure inside the repository:
 
 ```text
 server/
-├─ README.md
+├─ api/
+├─ services/
+├─ webadmin/
 ├─ main.py
 ├─ db.py
 ├─ models.py
 ├─ schemas.py
+├─ auth.py
+├─ runtime_state.py
 └─ .env
 ```
 
-## Függőségek
+---
 
-A szerverhez ajánlott `requirements-server.txt` tartalma:
+## Python Environment Setup
 
-```txt
-fastapi
-uvicorn[standard]
-sqlalchemy
-pymysql
-pydantic
-python-dotenv
-```
-
-Telepítés virtuális környezetben:
+From the repository root:
 
 ```bash
-cd /opt/central_messenger
 python3 -m venv .venv
 source .venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements-server.txt
+pip install -r requirements.txt
 ```
 
-Ha kézzel telepíted a modulokat:
-
-```bash
-pip install fastapi "uvicorn[standard]" sqlalchemy pymysql pydantic python-dotenv
-```
-
-## Linux rendszercsomagok telepítése
-
-Ubuntu vagy Debian alapú rendszeren:
+If `pip` is missing:
 
 ```bash
 sudo apt update
-sudo apt install -y python3 python3-venv python3-pip mysql-server
+sudo apt install -y python3-pip python3-venv
 ```
 
-MariaDB használata esetén:
+---
 
-```bash
-sudo apt update
-sudo apt install -y python3 python3-venv python3-pip mariadb-server
-```
+## Database Setup
 
-## Projektmappa létrehozása
+Create a database and a dedicated user.
 
-```bash
-sudo mkdir -p /opt/central_messenger
-sudo chown $USER:$USER /opt/central_messenger
-cd /opt/central_messenger
-```
-
-Git használata esetén:
-
-```bash
-git clone https://github.com/SAJAT_FELHASZNALO/central_messenger.git /opt/central_messenger
-cd /opt/central_messenger
-```
-
-## MySQL adatbázis létrehozása
-
-Jelentkezz be MySQL-be:
-
-```bash
-sudo mysql -u root -p
-```
-
-Majd hozd létre az adatbázist és a felhasználót:
+### MySQL / MariaDB example
 
 ```sql
-CREATE DATABASE messenger_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE sysping CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
-CREATE USER 'messenger_user'@'localhost' IDENTIFIED BY 'EROS_JELSZO';
-GRANT ALL PRIVILEGES ON messenger_db.* TO 'messenger_user'@'localhost';
+CREATE USER 'sysping_user'@'localhost' IDENTIFIED BY 'CHANGE_ME';
+GRANT ALL PRIVILEGES ON sysping.* TO 'sysping_user'@'localhost';
 FLUSH PRIVILEGES;
-EXIT;
 ```
 
-## Környezeti változók
+---
 
-Hozz létre egy `server/.env` fájlt:
+## Environment File
+
+Create or update `server/.env`:
 
 ```env
-DATABASE_URL=mysql+pymysql://messenger_user:EROS_JELSZO@127.0.0.1/messenger_db?charset=utf8mb4
+DATABASE_URL=mysql+pymysql://sysping_user:CHANGE_ME@127.0.0.1:3306/sysping?charset=utf8mb4
 SERVER_HOST=0.0.0.0
 SERVER_PORT=8080
 ```
 
-## Kézi indítás fejlesztéshez
+---
+
+## Start the Server
+
+From the repository root:
 
 ```bash
-cd /opt/central_messenger/server
+source .venv/bin/activate
+cd server
+uvicorn main:app --host 0.0.0.0 --port 8080
+```
+
+For development with auto-reload:
+
+```bash
 source ../.venv/bin/activate
 uvicorn main:app --host 0.0.0.0 --port 8080 --reload
 ```
 
-## Kézi indítás élesebb futtatáshoz
+---
 
-```bash
-cd /opt/central_messenger/server
-source ../.venv/bin/activate
-uvicorn main:app --host 0.0.0.0 --port 8080
-```
+## systemd Service
 
-## Automatikus indulás Linuxon systemd-vel
-
-Hozz létre egy service fájlt:
-
-```bash
-sudo nano /etc/systemd/system/central-messenger.service
-```
-
-A fájl tartalma:
+Create `/etc/systemd/system/sysping.service`:
 
 ```ini
 [Unit]
-Description=Central Messenger Server
+Description=SysPing Server
 After=network.target mysql.service mariadb.service
-Wants=network.target
 
 [Service]
 Type=simple
-User=YOUR_USERNAME
-WorkingDirectory=/opt/central_messenger/server
-Environment="PATH=/opt/central_messenger/.venv/bin"
-ExecStart=/opt/central_messenger/.venv/bin/uvicorn main:app --host 0.0.0.0 --port 8080
+User=YOUR_LINUX_USER
+WorkingDirectory=/opt/SysPing/server
+ExecStart=/opt/SysPing/.venv/bin/uvicorn main:app --host 127.0.0.1 --port 8080
 Restart=always
-RestartSec=5
+RestartSec=3
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-A service aktiválása és kezelése:
+Then enable and start it:
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable central-messenger.service
-sudo systemctl start central-messenger.service
-sudo systemctl restart central-messenger.service
-sudo systemctl status central-messenger.service
-journalctl -u central-messenger.service -f
+sudo systemctl enable sysping
+sudo systemctl start sysping
+sudo systemctl status sysping
 ```
 
-## Tűzfal beállítása
-
-Ha UFW fut a szerveren:
+View logs:
 
 ```bash
-sudo ufw allow 8080/tcp
-sudo ufw reload
-sudo ufw status
+journalctl -u sysping -f
 ```
 
-## Opcionális Nginx reverse proxy
+---
 
-Nginx telepítése:
+## Reverse Proxy with Nginx
 
-```bash
-sudo apt install -y nginx
-```
-
-Konfiguráció létrehozása:
-
-```bash
-sudo nano /etc/nginx/sites-available/central-messenger
-```
-
-Példa tartalom:
+Example Nginx site config:
 
 ```nginx
 server {
     listen 80;
-    server_name messenger.example.local;
+    server_name sysping.example.local;
 
     location / {
         proxy_pass http://127.0.0.1:8080;
         proxy_http_version 1.1;
 
         proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /ws/ {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
 ```
 
-Bekapcsolás:
+Enable and reload:
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/central-messenger /etc/nginx/sites-enabled/central-messenger
+sudo ln -s /etc/nginx/sites-available/sysping /etc/nginx/sites-enabled/sysping
 sudo nginx -t
-sudo systemctl restart nginx
+sudo systemctl reload nginx
 ```
 
-## Gyors ellenőrzések
+---
 
-A szerver indulásának ellenőrzése:
+## Reverse Proxy with Apache
+
+Enable required modules:
 
 ```bash
-sudo systemctl status central-messenger.service
-journalctl -u central-messenger.service -f
+sudo a2enmod proxy proxy_http proxy_wstunnel headers rewrite
+sudo systemctl restart apache2
 ```
 
-FastAPI docs elérésének ellenőrzése:
+Example Apache virtual host:
+
+```apache
+<VirtualHost *:80>
+    ServerName sysping.example.local
+
+    ProxyPreserveHost On
+    ProxyRequests Off
+
+    ProxyPass /ws/ ws://127.0.0.1:8080/ws/
+    ProxyPassReverse /ws/ ws://127.0.0.1:8080/ws/
+
+    ProxyPass / http://127.0.0.1:8080/
+    ProxyPassReverse / http://127.0.0.1:8080/
+
+    RequestHeader set X-Forwarded-Proto "http"
+</VirtualHost>
+```
+
+Enable the site and reload:
 
 ```bash
-curl http://127.0.0.1:8080/docs
+sudo a2ensite sysping.conf
+sudo apachectl configtest
+sudo systemctl reload apache2
 ```
 
-vagy távolról:
+---
+
+## Production Recommendations
+
+- Use HTTPS in front of the reverse proxy
+- Use WSS for WebSocket traffic in production
+- Restrict database access to localhost or trusted subnets
+- Use a strong password for the database user
+- Back up the database regularly
+- Keep the `.env` file out of public access
+- Run the app behind a reverse proxy instead of exposing Uvicorn directly to the internet
+
+---
+
+## Basic Health Check
+
+Open the root endpoint:
+
+```text
+http://SERVER:8080/
+```
+
+Expected response:
+
+```json
+{
+  "name": "SysPing Server",
+  "status": "ok"
+}
+```
+
+---
+
+## Web Admin
+
+Default web admin path:
+
+```text
+http://SERVER:8080/webadmin/login
+```
+
+From there you can:
+- manage devices
+- send messages
+- review delivery/read logs
+- manage branding
+- manage admin users
+
+---
+
+## Troubleshooting
+
+### Database login failed
+Check:
+- `DATABASE_URL`
+- MySQL user permissions
+- MySQL service status
+
+### Web admin shows template or route errors
+Check:
+- `server/webadmin/templates/`
+- static files mount
+- route imports in `server/main.py`
+
+### WebSocket clients do not connect
+Check:
+- reverse proxy WebSocket headers
+- firewall rules
+- `/ws/client/{machine_name}` path
+- server logs
+
+### Changes in models are not reflected in the database
+`Base.metadata.create_all()` does not update existing columns. Add missing columns manually or use a migration workflow.
+
+---
+
+## Useful Commands
 
 ```bash
-curl http://SERVER_IP:8080/docs
+sudo systemctl restart sysping
+sudo systemctl status sysping
+journalctl -u sysping -f
+mysql -u sysping_user -p
 ```
-
-## Mentés és visszaállítás
-
-Mentés:
-
-```bash
-mysqldump -u messenger_user -p messenger_db > messenger_backup.sql
-```
-
-Visszaállítás:
-
-```bash
-mysql -u messenger_user -p messenger_db < messenger_backup.sql
-```
-
-## Frissítés
-
-```bash
-cd /opt/central_messenger
-git pull
-source .venv/bin/activate
-pip install -r requirements-server.txt
-sudo systemctl restart central-messenger.service
-```
-
-## Megjegyzések
-
-- Éles környezetben ajánlott HTTPS / WSS használata.
-- Érdemes később klienshitelesítést vagy tokenes védelmet beépíteni.
-- A rendszer belső hálózatra készült, de reverse proxyval és TLS-sel biztonságosabbá tehető.
