@@ -8,11 +8,11 @@
         :root {
             --primary: {{ settings.primary_color or '#2563eb' }};
             --secondary: {{ settings.secondary_color or '#1e293b' }};
-            --bg: #f4f7fb;
+            --bg: #f5f7fb;
             --card: #ffffff;
             --text: #111827;
             --muted: #6b7280;
-            --border: #dbe3ee;
+            --border: #e5e7eb;
             --success: #16a34a;
             --danger: #dc2626;
             --warning: #f59e0b;
@@ -34,7 +34,7 @@
         }
 
         .sidebar {
-            background: var(--secondary);
+            background: linear-gradient(180deg, var(--secondary), #0f172a);
             color: white;
             padding: 24px 18px;
         }
@@ -46,19 +46,19 @@
         }
 
         .company {
-            color: rgba(255,255,255,0.75);
+            color: rgba(255,255,255,0.72);
             font-size: 14px;
-            margin-bottom: 28px;
+            margin-bottom: 24px;
         }
 
         .nav a {
             display: block;
             color: white;
             text-decoration: none;
-            padding: 10px 12px;
-            border-radius: 10px;
+            padding: 11px 12px;
+            border-radius: 12px;
             margin-bottom: 8px;
-            background: rgba(255,255,255,0.05);
+            background: rgba(255,255,255,0.06);
         }
 
         .nav a:hover {
@@ -66,7 +66,7 @@
         }
 
         .main {
-            padding: 28px;
+            padding: 24px;
         }
 
         .page-header {
@@ -75,6 +75,7 @@
             align-items: center;
             gap: 16px;
             margin-bottom: 24px;
+            flex-wrap: wrap;
         }
 
         .page-title {
@@ -89,10 +90,10 @@
 
         .badge {
             display: inline-block;
-            padding: 8px 12px;
-            border-radius: 999px;
             background: #e0f2fe;
             color: #075985;
+            border-radius: 999px;
+            padding: 8px 12px;
             font-size: 13px;
             font-weight: 600;
         }
@@ -102,8 +103,21 @@
             border: 1px solid var(--border);
             border-radius: 18px;
             padding: 18px;
-            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
             margin-bottom: 18px;
+        }
+
+        .grid {
+            display: grid;
+            gap: 18px;
+        }
+
+        .grid-4 {
+            grid-template-columns: repeat(4, minmax(180px, 1fr));
+        }
+
+        .grid-2 {
+            grid-template-columns: repeat(2, minmax(240px, 1fr));
         }
 
         .section-title {
@@ -112,29 +126,17 @@
             margin-bottom: 14px;
         }
 
-        .toolbar {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-            margin-bottom: 16px;
-            flex-wrap: wrap;
-        }
-
-        input[type="text"],
-        input[type="email"],
-        input[type="password"],
-        input[type="color"],
-        textarea {
+        input[type="text"], input[type="email"], input[type="password"], input[type="color"], textarea, select {
             width: 100%;
             padding: 10px 12px;
             border-radius: 10px;
             border: 1px solid var(--border);
-            background: white;
             font-size: 14px;
+            background: white;
         }
 
         textarea {
-            min-height: 90px;
+            min-height: 100px;
             resize: vertical;
         }
 
@@ -148,9 +150,7 @@
             cursor: pointer;
         }
 
-        button:hover {
-            opacity: 0.94;
-        }
+        button:hover { opacity: .95; }
 
         table {
             width: 100%;
@@ -158,8 +158,8 @@
         }
 
         th, td {
-            text-align: left;
             padding: 12px 10px;
+            text-align: left;
             border-bottom: 1px solid var(--border);
             vertical-align: top;
             font-size: 14px;
@@ -170,27 +170,55 @@
             font-weight: 600;
         }
 
-        .status-online { color: var(--success); font-weight: 700; }
-        .status-offline { color: var(--danger); font-weight: 700; }
-
-        .small { font-size: 12px; color: var(--muted); }
-
-        .checks {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(160px, 1fr));
-            gap: 8px 16px;
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
         }
 
-        .checks label {
+        .muted { color: var(--muted); }
+        .success { color: var(--success); }
+        .danger { color: var(--danger); }
+        .warning { color: var(--warning); }
+
+        .stack {
             display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 14px;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .mobile-cards {
+            display: none;
         }
 
         @media (max-width: 1100px) {
             .layout {
                 grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                padding-bottom: 10px;
+            }
+
+            .grid-4, .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 760px) {
+            table.desktop-table {
+                display: none;
+            }
+
+            .mobile-cards {
+                display: block;
+            }
+
+            .main {
+                padding: 16px;
+            }
+
+            .page-title {
+                font-size: 24px;
             }
         }
     </style>
@@ -199,12 +227,18 @@
 <div class="layout">
     <aside class="sidebar">
         <div class="brand">{{ settings.app_name }}</div>
-        <div class="company">{{ settings.company_name or 'Nincs megadva cég' }}</div>
+        <div class="company">{{ settings.company_name or 'Web Admin' }}</div>
 
         <nav class="nav">
             <a href="/webadmin/">Dashboard</a>
+            <a href="/webadmin/messages">Üzenetek</a>
+            {% if current_user.is_superadmin %}
+            <a href="/webadmin/message-log">Teljes üzenet log</a>
+            {% endif %}
             <a href="/webadmin/devices">Eszközök</a>
+            {% if current_user.is_superadmin or current_user.can_manage_admin_users %}
             <a href="/webadmin/users">Admin felhasználók</a>
+            {% endif %}
             <a href="/webadmin/settings">Beállítások</a>
             <a href="/webadmin/logout">Kilépés</a>
         </nav>
@@ -216,9 +250,7 @@
                 <div class="page-title">{% block page_title %}{% endblock %}</div>
                 <div class="page-subtitle">{% block page_subtitle %}{% endblock %}</div>
             </div>
-            <div class="badge">
-                Belépve: {{ current_user.username }}
-            </div>
+            <div class="badge">Belépve: {{ current_user.username }}</div>
         </div>
 
         {% block content %}{% endblock %}

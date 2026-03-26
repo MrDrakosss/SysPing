@@ -7,13 +7,11 @@ from schemas import AppSettingUpdate
 
 def get_settings(db: Session) -> AppSetting:
     settings = db.execute(select(AppSetting)).scalar_one_or_none()
-
     if not settings:
         settings = AppSetting()
         db.add(settings)
         db.commit()
         db.refresh(settings)
-
     return settings
 
 

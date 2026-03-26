@@ -1,8 +1,12 @@
 import json
+import os
 import sys
+import tempfile
 import threading
 import time
+import urllib.request
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from websocket import create_connection
 
@@ -25,7 +29,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from common import MACHINE_NAME, SERVER_WS, fetch_branding
+from common import MACHINE_NAME, SERVER_HTTP, SERVER_WS, fetch_branding, http_get_json
 
 
 def is_dark_mode(app: QApplication) -> bool:
@@ -98,15 +102,90 @@ def build_stylesheet(dark: bool) -> str:
     """
 
 
+def set_windows_app_id(app_name: str) -> None:
+    if os.name != "nt":
+        return
+    try:
+        import ctypes
+        safe_name = "".join(ch if ch.isalnum() else "." for ch in app_name).strip(".") or "SysPing"
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(safe_name)
+    except Exception:
+        pass
+
+
+def maybe_handle_admin_close_child() -> None:
+    if os.name != "nt":
+        return
+    if "--authorize-close" not in sys.argv:
+        return
+
+    try:
+        idx = sys.argv.index("--authorize-close")
+        token_path = sys.argv[idx + 1]
+        Path(token_path).write_text("approved", encoding="utf-8")
+        sys.exit(0)
+    except Exception:
+        sys.exit(2)
+
+
+def request_admin_close_approval() -> bool:
+    if os.name != "nt":
+        return True
+
+    try:
+        import ctypes
+    except Exception:
+        return False
+
+    fd, token_path = tempfile.mkstemp(prefix="sysping_close_", suffix=".token")
+    os.close(fd)
+    try:
+        Path(token_path).unlink(missing_ok=True)
+    except Exception:
+        pass
+
+    if getattr(sys, "frozen", False):
+        executable = sys.executable
+        params = f'--authorize-close "{token_path}"'
+    else:
+        executable = sys.executable
+        script_path = str(Path(__file__).resolve())
+        params = f'"{script_path}" --authorize-close "{token_path}"'
+
+    result = ctypes.windll.shell32.ShellExecuteW(
+        None,
+        "runas",
+        executable,
+        params,
+        str(Path(__file__).resolve().parent),
+        1,
+    )
+
+    if result <= 32:
+        return False
+
+    deadline = time.time() + 20
+    while time.time() < deadline:
+        if Path(token_path).exists():
+            try:
+                Path(token_path).unlink(missing_ok=True)
+            except Exception:
+                pass
+            return True
+        time.sleep(0.2)
+
+    return False
+
+
 class ReceiverSignals(QObject):
     server_message = Signal(dict)
     server_status = Signal(str)
 
 
 class ImportantAlertDialog(QDialog):
-    def __init__(self, sender: str, text: str, dark: bool):
+    def __init__(self, sender: str, text: str, dark: bool, app_name: str):
         super().__init__()
-        self.setWindowTitle("FONTOS ÜZENET")
+        self.setWindowTitle(f"{app_name} - FONTOS")
         self.setModal(True)
         self.setWindowFlag(Qt.WindowStaysOnTopHint, True)
         self.resize(560, 280)
@@ -125,31 +204,6 @@ class ImportantAlertDialog(QDialog):
         layout.addWidget(body)
         layout.addWidget(ok_btn, alignment=Qt.AlignRight)
         self.setLayout(layout)
-
-        if dark:
-            self.setStyleSheet("""
-                QDialog { background: #1e1f22; color: #e8eaed; }
-                QTextBrowser {
-                    background: #2b2d31;
-                    color: #e8eaed;
-                    border: 1px solid #ef4444;
-                    border-radius: 10px;
-                    padding: 10px;
-                    font-size: 14px;
-                }
-            """)
-        else:
-            self.setStyleSheet("""
-                QDialog { background: #fff7f7; color: #111827; }
-                QTextBrowser {
-                    background: white;
-                    color: #111827;
-                    border: 1px solid #ef4444;
-                    border-radius: 10px;
-                    padding: 10px;
-                    font-size: 14px;
-                }
-            """)
 
     def show_centered(self):
         screen = QApplication.primaryScreen()
@@ -173,10 +227,7 @@ class ServerListenerThread(threading.Thread):
         while self.running:
             try:
                 self.signals.server_status.emit("connecting")
-                ws_url = f"{SERVER_WS}/{MACHINE_NAME}"
-                print(f"[Receiver] Kapcsolódás ide: {ws_url}")
-                self.ws = create_connection(ws_url, timeout=30)
-                print("[Receiver] WebSocket kapcsolat létrejött")
+                self.ws = create_connection(f"{SERVER_WS}/{MACHINE_NAME}", timeout=30)
                 self.signals.server_status.emit("connected")
 
                 last_heartbeat = time.time()
@@ -221,6 +272,7 @@ class ReceiverWindow(QMainWindow):
         self.dark = dark
         self.branding = fetch_branding()
         self.app_name = self.branding.get("app_name") or "SysPing"
+        self.allow_real_exit = False
 
         self.setWindowTitle(f"{self.app_name} Receiver - {MACHINE_NAME}")
         self.resize(1050, 680)
@@ -261,6 +313,7 @@ class ReceiverWindow(QMainWindow):
         self.setCentralWidget(splitter)
 
         self.setup_tray()
+        self.load_recent_messages()
 
         self.reminder_timer = QTimer(self)
         self.reminder_timer.timeout.connect(self.check_important_reminders)
@@ -280,13 +333,33 @@ class ReceiverWindow(QMainWindow):
         open_action.triggered.connect(self.restore_from_tray)
         menu.addAction(open_action)
 
-        quit_action = QAction("Kilépés", self)
-        quit_action.triggered.connect(self.exit_app)
+        quit_action = QAction("Program leállítása (admin joggal)", self)
+        quit_action.triggered.connect(self.request_full_exit)
         menu.addAction(quit_action)
 
         self.tray_icon.setContextMenu(menu)
         self.tray_icon.activated.connect(self.on_tray_activated)
         self.tray_icon.show()
+
+    def load_recent_messages(self):
+        try:
+            data = http_get_json(f"/client/messages/{MACHINE_NAME}?limit=20")
+            for item in data:
+                sender = item["sender_machine"]
+                msg = {
+                    "message_id": item["id"],
+                    "sender": sender,
+                    "text": item["text"],
+                    "important": item["is_important"],
+                    "timestamp": item["created_at"],
+                    "direction": "in",
+                    "read_sent": item["status"] == "read",
+                }
+                self.chats.setdefault(sender, []).append(msg)
+
+            self.refresh_chat_list()
+        except Exception as e:
+            print("[Receiver] History betöltési hiba:", e)
 
     def create_icon(self, unread: bool) -> QIcon:
         pixmap = QPixmap(64, 64)
@@ -352,31 +425,31 @@ class ReceiverWindow(QMainWindow):
 
         self.update_tray_icon()
 
-        short_text = text if len(text) <= 120 else text[:117] + "..."
+        short_text = text if len(text) <= 180 else text[:177] + "..."
         if important:
             self.tray_icon.showMessage(
-                f"FONTOS - {sender}",
+                f"{self.app_name} - FONTOS - {sender}",
                 short_text,
                 QSystemTrayIcon.Critical,
-                7000,
+                10000,
             )
             self.restore_from_tray()
-            ImportantAlertDialog(sender, text, self.dark).show_centered()
+            ImportantAlertDialog(sender, text, self.dark, self.app_name).show_centered()
         else:
             self.tray_icon.showMessage(
-                f"Új üzenet: {sender}",
+                f"{self.app_name} - Új üzenet: {sender}",
                 short_text,
                 QSystemTrayIcon.Information,
-                5000,
+                7000,
             )
 
     def check_important_reminders(self):
         now = datetime.now()
         for message_id, item in list(self.unread_important.items()):
             if now - item["last_reminder"] >= timedelta(minutes=10):
-                short_text = item["text"] if len(item["text"]) <= 120 else item["text"][:117] + "..."
+                short_text = item["text"] if len(item["text"]) <= 180 else item["text"][:177] + "..."
                 self.tray_icon.showMessage(
-                    f"FONTOS olvasatlan üzenet: {item['sender']}",
+                    f"{self.app_name} - FONTOS olvasatlan üzenet: {item['sender']}",
                     short_text,
                     QSystemTrayIcon.Critical,
                     10000,
@@ -452,13 +525,9 @@ class ReceiverWindow(QMainWindow):
 
             if msg["important"]:
                 badge = (
-                    "<div style='display:inline-block; background:#7f1d1d; color:#fecaca; "
-                    "padding:4px 8px; border-radius:10px; font-size:12px; font-weight:bold; "
-                    "margin-bottom:6px;'>FONTOS</div>"
+                    "<div style='display:inline-block; background:#7f1d1d; color:#fecaca; padding:4px 8px; border-radius:10px; font-size:12px; font-weight:bold; margin-bottom:6px;'>FONTOS</div>"
                     if self.dark else
-                    "<div style='display:inline-block; background:#fee2e2; color:#b91c1c; "
-                    "padding:4px 8px; border-radius:10px; font-size:12px; font-weight:bold; "
-                    "margin-bottom:6px;'>FONTOS</div>"
+                    "<div style='display:inline-block; background:#fee2e2; color:#b91c1c; padding:4px 8px; border-radius:10px; font-size:12px; font-weight:bold; margin-bottom:6px;'>FONTOS</div>"
                 )
                 bubble_bg = "#3a2323" if self.dark else "#fff7f7"
                 border = "#7f1d1d" if self.dark else "#fca5a5"
@@ -466,12 +535,7 @@ class ReceiverWindow(QMainWindow):
             html.append(f"""
                 <div style="margin-bottom:14px;">
                     {badge}
-                    <div style="
-                        background:{bubble_bg};
-                        border:1px solid {border};
-                        border-radius:14px;
-                        padding:10px 12px;
-                    ">
+                    <div style="background:{bubble_bg}; border:1px solid {border}; border-radius:14px; padding:10px 12px;">
                         <div style="font-size:12px; color:{meta}; margin-bottom:6px;">
                             {self.escape_html(msg["sender"])} • {self.escape_html(msg["timestamp"])}
                         </div>
@@ -497,15 +561,23 @@ class ReceiverWindow(QMainWindow):
             self.setWindowIcon(self.icon_normal)
             self.tray_icon.setToolTip(f"{self.app_name} Receiver")
 
+    def request_full_exit(self):
+        approved = request_admin_close_approval()
+        if approved:
+            self.allow_real_exit = True
+            self.server_thread.stop()
+            self.tray_icon.hide()
+            QApplication.quit()
+        else:
+            QMessageBox.information(
+                self,
+                self.app_name,
+                "A teljes leállításhoz rendszergazdai jóváhagyás szükséges.",
+            )
+
     def closeEvent(self, event):
         event.ignore()
         self.hide()
-        self.tray_icon.showMessage(
-            f"{self.app_name} Receiver",
-            "Az alkalmazás a tálcára került.",
-            QSystemTrayIcon.Information,
-            3000,
-        )
 
     def restore_from_tray(self):
         self.show()
@@ -515,11 +587,6 @@ class ReceiverWindow(QMainWindow):
     def on_tray_activated(self, reason):
         if reason == QSystemTrayIcon.DoubleClick:
             self.restore_from_tray()
-
-    def exit_app(self):
-        self.server_thread.stop()
-        self.tray_icon.hide()
-        QApplication.quit()
 
     @staticmethod
     def escape_html(text: str) -> str:
@@ -531,15 +598,22 @@ class ReceiverWindow(QMainWindow):
 
 
 if __name__ == "__main__":
+    maybe_handle_admin_close_child()
+
     app = QApplication(sys.argv)
     dark = is_dark_mode(app)
+
+    branding = fetch_branding()
+    app_name = branding.get("app_name") or "SysPing"
+
+    set_windows_app_id(app_name)
+    app.setApplicationName(app_name)
+    app.setQuitOnLastWindowClosed(False)
     app.setStyleSheet(build_stylesheet(dark))
 
     if not QSystemTrayIcon.isSystemTrayAvailable():
         QMessageBox.critical(None, "Hiba", "A system tray nem érhető el.")
         sys.exit(1)
 
-    app.setQuitOnLastWindowClosed(False)
     window = ReceiverWindow(dark)
-    window.show()
     sys.exit(app.exec())

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from auth import (
@@ -9,18 +10,28 @@ from auth import (
     require_token_header,
 )
 from db import get_db
+from models import Device
 from schemas import (
     AdminUserCreate,
     AdminUserOut,
     AdminUserUpdate,
     AppSettingOut,
     AppSettingUpdate,
+    BulkSendMessageIn,
+    DashboardStatsOut,
     DeviceOut,
     DeviceUpdate,
+    MessageOut,
     SendMessageIn,
 )
 from services.devices import list_devices, restore_device, soft_delete_device, update_device
-from services.messages import create_message
+from services.messages import (
+    create_bulk_messages,
+    create_message,
+    get_dashboard_message_stats,
+    list_all_messages,
+    list_messages_for_admin,
+)
 from services.settings import get_settings, update_settings
 from services.users import create_admin_user, list_admin_users, update_admin_user
 
@@ -34,6 +45,30 @@ def configure_online_clients(mapping: dict):
     online_clients = mapping
 
 
+@router.get("/dashboard/stats", response_model=DashboardStatsOut)
+def admin_dashboard_stats(
+    token: str = Depends(require_token_header),
+    db: Session = Depends(get_db),
+):
+    user = require_admin_user(db, token)
+
+    total_devices = db.scalar(select(func.count()).select_from(Device)) or 0
+    online_devices = db.scalar(
+        select(func.count()).select_from(Device).where(Device.is_online == True)  # noqa
+    ) or 0
+
+    msg_stats = get_dashboard_message_stats(db)
+
+    return {
+        "total_devices": total_devices,
+        "online_devices": online_devices,
+        "offline_devices": total_devices - online_devices,
+        "queued_messages": msg_stats["queued_messages"],
+        "total_messages": msg_stats["total_messages"],
+        "avg_read_seconds": msg_stats["avg_read_seconds"],
+    }
+
+
 @router.get("/devices", response_model=list[DeviceOut])
 def admin_list_devices(
     search: str = "",
@@ -42,7 +77,6 @@ def admin_list_devices(
     db: Session = Depends(get_db),
 ):
     user = require_admin_user(db, token)
-    require_manage_devices(user)
     return list_devices(db, search=search, include_deleted=include_deleted)
 
 
@@ -92,7 +126,7 @@ def admin_restore_device(
     return {"ok": True}
 
 
-@router.post("/messages")
+@router.post("/messages", response_model=MessageOut)
 async def admin_send_message(
     payload: SendMessageIn,
     token: str = Depends(require_token_header),
@@ -102,7 +136,59 @@ async def admin_send_message(
     if not user.can_send_messages and not user.is_superadmin:
         raise HTTPException(status_code=403, detail="Nincs üzenetküldési jog")
 
-    return await create_message(db, payload, online_clients)
+    msg = await create_message(
+        db=db,
+        sender_machine=user.username,
+        sender_admin_user_id=user.id,
+        recipient_machine=payload.recipient_machine,
+        text=payload.text,
+        is_important=payload.is_important,
+        online_clients=online_clients,
+    )
+    return msg
+
+
+@router.post("/messages/bulk")
+async def admin_send_bulk_message(
+    payload: BulkSendMessageIn,
+    token: str = Depends(require_token_header),
+    db: Session = Depends(get_db),
+):
+    user = require_admin_user(db, token)
+    if not user.can_send_messages and not user.is_superadmin:
+        raise HTTPException(status_code=403, detail="Nincs üzenetküldési jog")
+
+    items = await create_bulk_messages(
+        db=db,
+        sender_machine=user.username,
+        sender_admin_user_id=user.id,
+        recipient_machines=payload.recipient_machines,
+        text=payload.text,
+        is_important=payload.is_important,
+        online_clients=online_clients,
+    )
+
+    return {"ok": True, "count": len(items)}
+
+
+@router.get("/messages/my", response_model=list[MessageOut])
+def admin_my_messages(
+    token: str = Depends(require_token_header),
+    db: Session = Depends(get_db),
+):
+    user = require_admin_user(db, token)
+    return list_messages_for_admin(db, user.id)
+
+
+@router.get("/messages/all", response_model=list[MessageOut])
+def admin_all_messages(
+    token: str = Depends(require_token_header),
+    db: Session = Depends(get_db),
+):
+    user = require_admin_user(db, token)
+    if not user.is_superadmin:
+        raise HTTPException(status_code=403, detail="Csak superadmin érheti el")
+    return list_all_messages(db)
 
 
 @router.get("/settings", response_model=AppSettingOut)
@@ -111,7 +197,6 @@ def admin_get_settings(
     db: Session = Depends(get_db),
 ):
     user = require_admin_user(db, token)
-    require_manage_branding(user)
     return get_settings(db)
 
 

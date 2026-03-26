@@ -79,17 +79,21 @@ def update_device(db: Session, device_id: int, payload: DeviceUpdate) -> Device 
     if not device:
         return None
 
-    if payload.display_name is not None:
-        device.display_name = payload.display_name
-    if payload.owner is not None:
-        device.owner = payload.owner
-    if payload.note is not None:
-        device.note = payload.note
+    try:
+        if payload.display_name is not None:
+            device.display_name = payload.display_name
+        if payload.owner is not None:
+            device.owner = payload.owner
+        if payload.note is not None:
+            device.note = payload.note
 
-    db.add(device)
-    db.commit()
-    db.refresh(device)
-    return device
+        db.add(device)
+        db.commit()
+        db.refresh(device)
+        return device
+    except Exception:
+        db.rollback()
+        raise
 
 
 def soft_delete_device(db: Session, device_id: int) -> bool:
@@ -97,11 +101,15 @@ def soft_delete_device(db: Session, device_id: int) -> bool:
     if not device:
         return False
 
-    device.is_deleted = True
-    device.is_online = False
-    db.add(device)
-    db.commit()
-    return True
+    try:
+        device.is_deleted = True
+        device.is_online = False
+        db.add(device)
+        db.commit()
+        return True
+    except Exception:
+        db.rollback()
+        raise
 
 
 def restore_device(db: Session, device_id: int) -> bool:
@@ -109,7 +117,11 @@ def restore_device(db: Session, device_id: int) -> bool:
     if not device:
         return False
 
-    device.is_deleted = False
-    db.add(device)
-    db.commit()
-    return True
+    try:
+        device.is_deleted = False
+        db.add(device)
+        db.commit()
+        return True
+    except Exception:
+        db.rollback()
+        raise

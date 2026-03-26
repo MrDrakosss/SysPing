@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from auth import hash_password
@@ -12,27 +12,22 @@ def list_admin_users(db: Session) -> list[AdminUser]:
     ).scalars().all()
 
 
-def get_admin_user_by_username(db: Session, username: str) -> AdminUser | None:
-    return db.execute(
-        select(AdminUser).where(AdminUser.username == username)
-    ).scalar_one_or_none()
-
-
 def create_admin_user(db: Session, payload: AdminUserCreate) -> AdminUser:
-    existing = get_admin_user_by_username(db, payload.username)
-    if existing:
-        raise ValueError("A felhasználónév már létezik")
-
-    email_exists = db.execute(
-        select(AdminUser).where(AdminUser.email == payload.email)
+    existing = db.execute(
+        select(AdminUser).where(
+            or_(
+                AdminUser.username == payload.username,
+                AdminUser.email == payload.email,
+            )
+        )
     ).scalar_one_or_none()
 
-    if email_exists:
-        raise ValueError("Az email cím már létezik")
+    if existing:
+        raise ValueError("A felhasználónév vagy email már létezik")
 
     user = AdminUser(
-        username=payload.username,
-        email=payload.email,
+        username=payload.username.strip(),
+        email=str(payload.email).strip(),
         password_hash=hash_password(payload.password),
         is_active=payload.is_active,
         can_login_admin_gui=payload.can_login_admin_gui,
@@ -43,6 +38,7 @@ def create_admin_user(db: Session, payload: AdminUserCreate) -> AdminUser:
         can_manage_branding=payload.can_manage_branding,
         can_manage_admin_users=payload.can_manage_admin_users,
     )
+
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -55,8 +51,8 @@ def update_admin_user(db: Session, user_id: int, payload: AdminUserUpdate) -> Ad
         return None
 
     if payload.email is not None:
-        user.email = payload.email
-    if payload.password is not None and payload.password.strip():
+        user.email = str(payload.email).strip()
+    if payload.password is not None:
         user.password_hash = hash_password(payload.password)
     if payload.is_active is not None:
         user.is_active = payload.is_active

@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block page_title %}Üzenetek{% endblock %}
+{% block page_subtitle %}Saját kiküldött üzenetek és új üzenet küldése{% endblock %}
+
+{% block content %}
+<div class="grid grid-2">
+    <div class="card">
+        <div class="section-title">Új üzenet küldése egy gépnek</div>
+        <form method="post" action="/webadmin/messages/send" class="stack">
+            <select name="recipient_machine" required>
+                <option value="">Válassz gépet...</option>
+                {% for device in devices %}
+                    <option value="{{ device.machine_name }}">{{ device.machine_name }}{% if device.owner %} — {{ device.owner }}{% endif %}</option>
+                {% endfor %}
+            </select>
+            <textarea name="text" placeholder="Írd ide az üzenetet..." required></textarea>
+            <label><input type="checkbox" name="is_important"> Fontos üzenet</label>
+            <button type="submit">Küldés</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <div class="section-title">Tömeges üzenetküldés</div>
+        <form method="post" action="/webadmin/messages/send-bulk" class="stack">
+            <div style="max-height:220px; overflow:auto; border:1px solid var(--border); border-radius:10px; padding:10px;">
+                {% for device in devices %}
+                <div style="margin-bottom:8px;">
+                    <label>
+                        <input type="checkbox" name="recipient_machines" value="{{ device.machine_name }}">
+                        {{ device.machine_name }}{% if device.owner %} — {{ device.owner }}{% endif %}
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+            <textarea name="text" placeholder="Ugyanaz az üzenet megy minden kiválasztott gépre..." required></textarea>
+            <label><input type="checkbox" name="is_important"> Fontos üzenet</label>
+            <button type="submit">Tömeges küldés</button>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="section-title">Saját kiküldött üzeneteim</div>
+
+    <table class="desktop-table">
+        <thead>
+            <tr>
+                <th>Címzett</th>
+                <th>Üzenet</th>
+                <th>Típus</th>
+                <th>Kiküldve</th>
+                <th>Kézbesítve</th>
+                <th>Olvasva</th>
+                <th>Státusz</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for msg in messages %}
+            <tr>
+                <td>{{ msg.recipient_machine }}</td>
+                <td>{{ msg.text }}</td>
+                <td>{% if msg.is_important %}<span class="danger">Fontos</span>{% else %}Normál{% endif %}</td>
+                <td>{{ msg.created_at }}</td>
+                <td>{{ msg.delivered_at or '-' }}</td>
+                <td>{{ msg.read_at or '-' }}</td>
+                <td>{{ msg.status }}</td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="7">Még nincs kiküldött üzenet.</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="mobile-cards">
+        {% for msg in messages %}
+        <div class="card">
+            <div><strong>{{ msg.recipient_machine }}</strong></div>
+            <div style="margin:8px 0;">{{ msg.text }}</div>
+            <div>{% if msg.is_important %}<span class="danger">Fontos</span>{% else %}Normál{% endif %}</div>
+            <div class="muted">Kiküldve: {{ msg.created_at }}</div>
+            <div class="muted">Kézbesítve: {{ msg.delivered_at or '-' }}</div>
+            <div class="muted">Olvasva: {{ msg.read_at or '-' }}</div>
+            <div class="muted">Státusz: {{ msg.status }}</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

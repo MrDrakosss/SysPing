@@ -1,4 +1,3 @@
-import os
 import secrets
 import shutil
 from pathlib import Path
@@ -6,25 +5,28 @@ from typing import Dict
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
-from pathlib import Path
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from auth import authenticate_user
 from db import get_db
-from models import AdminUser, Device, Message
-from schemas import AdminUserCreate, AdminUserUpdate, AppSettingUpdate, DeviceUpdate
+from models import AdminUser, Device
+from schemas import AdminUserCreate, AdminUserUpdate, AppSettingUpdate, BulkSendMessageIn, DeviceUpdate, SendMessageIn
 from services.devices import list_devices, restore_device, soft_delete_device, update_device
+from services.messages import get_dashboard_message_stats, list_all_messages, list_messages_for_admin
 from services.settings import get_settings, update_settings
 from services.users import create_admin_user, list_admin_users, update_admin_user
+from api.admin_routes import online_clients
+from services.messages import create_message, create_bulk_messages
 
-router = APIRouter(prefix="/webadmin", tags=["webadmin"])
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
+router = APIRouter(prefix="/webadmin", tags=["webadmin"])
+
 WEB_SESSIONS: Dict[str, int] = {}
-UPLOADS_DIR = Path("webadmin/static/uploads")
+UPLOADS_DIR = BASE_DIR / "static" / "uploads"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -34,10 +36,8 @@ def save_upload(file: UploadFile | None, prefix: str) -> str:
 
     filename = f"{prefix}_{secrets.token_hex(8)}_{Path(file.filename).name}"
     target = UPLOADS_DIR / filename
-
     with target.open("wb") as f:
         shutil.copyfileobj(file.file, f)
-
     return f"/webadmin/static/uploads/{filename}"
 
 
@@ -60,11 +60,11 @@ def get_web_user(request: Request, db: Session) -> AdminUser | None:
 def require_web_user(request: Request, db: Session) -> AdminUser:
     user = get_web_user(request, db)
     if not user:
-        raise PermissionError("Nincs belépve vagy nincs web admin jogosultság")
+        raise PermissionError
     return user
 
 
-def redirect_to_login() -> RedirectResponse:
+def redirect_to_login():
     return RedirectResponse(url="/webadmin/login", status_code=303)
 
 
@@ -73,8 +73,8 @@ def webadmin_login_page(request: Request, db: Session = Depends(get_db)):
     settings = get_settings(db)
     return templates.TemplateResponse(
         request,
-        name="login.html",
-        context={
+        "login.html",
+        {
             "request": request,
             "settings": settings,
             "error": None,
@@ -95,25 +95,19 @@ def webadmin_login_submit(
     if not user or not user.can_login_web_admin:
         return templates.TemplateResponse(
             request,
-            name="login.html",
-            context={
+            "login.html",
+            {
                 "request": request,
                 "settings": settings,
                 "error": "Hibás belépési adatok vagy nincs web admin jogosultság.",
             },
-            status_code=401,
         )
 
     session_token = secrets.token_urlsafe(32)
     WEB_SESSIONS[session_token] = user.id
 
     response = RedirectResponse(url="/webadmin/", status_code=303)
-    response.set_cookie(
-        key="webadmin_session",
-        value=session_token,
-        httponly=True,
-        samesite="lax",
-    )
+    response.set_cookie("webadmin_session", session_token, httponly=True, samesite="lax")
     return response
 
 
@@ -141,21 +135,19 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     online_devices = db.scalar(
         select(func.count()).select_from(Device).where(Device.is_online == True)  # noqa
     ) or 0
-    queued_messages = db.scalar(
-        select(func.count()).select_from(Message).where(Message.status == "queued")
-    ) or 0
 
+    msg_stats = get_dashboard_message_stats(db)
     recent_devices = db.execute(
         select(Device)
         .where(Device.is_deleted == False)  # noqa
         .order_by(Device.last_seen_at.desc())
-        .limit(10)
+        .limit(8)
     ).scalars().all()
 
     return templates.TemplateResponse(
         request,
-        name="dashboard.html",
-        context={
+        "dashboard.html",
+        {
             "request": request,
             "settings": settings,
             "current_user": user,
@@ -163,9 +155,110 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
                 "total_devices": total_devices,
                 "online_devices": online_devices,
                 "offline_devices": total_devices - online_devices,
-                "queued_messages": queued_messages,
+                "queued_messages": msg_stats["queued_messages"],
+                "total_messages": msg_stats["total_messages"],
+                "avg_read_seconds": msg_stats["avg_read_seconds"],
             },
             "recent_devices": recent_devices,
+        },
+    )
+
+
+@router.get("/messages", response_class=HTMLResponse)
+def messages_page(request: Request, db: Session = Depends(get_db)):
+    try:
+        user = require_web_user(request, db)
+    except PermissionError:
+        return redirect_to_login()
+
+    settings = get_settings(db)
+    devices = list_devices(db, include_deleted=False)
+    my_messages = list_messages_for_admin(db, user.id)
+
+    return templates.TemplateResponse(
+        request,
+        "messages.html",
+        {
+            "request": request,
+            "settings": settings,
+            "current_user": user,
+            "devices": devices,
+            "messages": my_messages,
+        },
+    )
+
+
+@router.post("/messages/send")
+async def messages_send(
+    request: Request,
+    recipient_machine: str = Form(...),
+    text: str = Form(...),
+    is_important: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+):
+    try:
+        user = require_web_user(request, db)
+    except PermissionError:
+        return redirect_to_login()
+
+    await create_message(
+        db=db,
+        sender_machine=user.username,
+        sender_admin_user_id=user.id,
+        recipient_machine=recipient_machine,
+        text=text,
+        is_important=is_important is not None,
+        online_clients=online_clients,
+    )
+    return RedirectResponse(url="/webadmin/messages", status_code=303)
+
+
+@router.post("/messages/send-bulk")
+async def messages_send_bulk(
+    request: Request,
+    recipient_machines: list[str] = Form(...),
+    text: str = Form(...),
+    is_important: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+):
+    try:
+        user = require_web_user(request, db)
+    except PermissionError:
+        return redirect_to_login()
+
+    await create_bulk_messages(
+        db=db,
+        sender_machine=user.username,
+        sender_admin_user_id=user.id,
+        recipient_machines=recipient_machines,
+        text=text,
+        is_important=is_important is not None,
+        online_clients=online_clients,
+    )
+    return RedirectResponse(url="/webadmin/messages", status_code=303)
+
+
+@router.get("/message-log", response_class=HTMLResponse)
+def message_log_page(request: Request, db: Session = Depends(get_db)):
+    try:
+        user = require_web_user(request, db)
+    except PermissionError:
+        return redirect_to_login()
+
+    if not user.is_superadmin:
+        return RedirectResponse(url="/webadmin/", status_code=303)
+
+    settings = get_settings(db)
+    messages = list_all_messages(db)
+
+    return templates.TemplateResponse(
+        request,
+        "message_log.html",
+        {
+            "request": request,
+            "settings": settings,
+            "current_user": user,
+            "messages": messages,
         },
     )
 
@@ -187,8 +280,8 @@ def devices_page(
 
     return templates.TemplateResponse(
         request,
-        name="devices.html",
-        context={
+        "devices.html",
+        {
             "request": request,
             "settings": settings,
             "current_user": user,
@@ -213,49 +306,30 @@ def devices_save(
     except PermissionError:
         return redirect_to_login()
 
-    if not (user.is_superadmin or user.can_manage_devices):
-        return RedirectResponse(url="/webadmin/devices", status_code=303)
-
-    payload = DeviceUpdate(
-        display_name=display_name,
-        owner=owner,
-        note=note,
-    )
+    payload = DeviceUpdate(display_name=display_name, owner=owner, note=note)
     update_device(db, device_id, payload)
     return RedirectResponse(url="/webadmin/devices", status_code=303)
 
 
 @router.post("/devices/{device_id}/archive")
-def devices_archive(
-    request: Request,
-    device_id: int,
-    db: Session = Depends(get_db),
-):
+def devices_archive(request: Request, device_id: int, db: Session = Depends(get_db)):
     try:
         user = require_web_user(request, db)
     except PermissionError:
         return redirect_to_login()
 
-    if user.is_superadmin or user.can_manage_devices:
-        soft_delete_device(db, device_id)
-
+    soft_delete_device(db, device_id)
     return RedirectResponse(url="/webadmin/devices", status_code=303)
 
 
 @router.post("/devices/{device_id}/restore")
-def devices_restore(
-    request: Request,
-    device_id: int,
-    db: Session = Depends(get_db),
-):
+def devices_restore(request: Request, device_id: int, db: Session = Depends(get_db)):
     try:
         user = require_web_user(request, db)
     except PermissionError:
         return redirect_to_login()
 
-    if user.is_superadmin or user.can_manage_devices:
-        restore_device(db, device_id)
-
+    restore_device(db, device_id)
     return RedirectResponse(url="/webadmin/devices?include_deleted=true", status_code=303)
 
 
@@ -271,8 +345,8 @@ def users_page(request: Request, db: Session = Depends(get_db)):
 
     return templates.TemplateResponse(
         request,
-        name="users.html",
-        context={
+        "users.html",
+        {
             "request": request,
             "settings": settings,
             "current_user": user,
@@ -302,9 +376,6 @@ def users_create(
     except PermissionError:
         return redirect_to_login()
 
-    if not (user.is_superadmin or user.can_manage_admin_users):
-        return RedirectResponse(url="/webadmin/users", status_code=303)
-
     payload = AdminUserCreate(
         username=username.strip(),
         email=email.strip(),
@@ -318,7 +389,6 @@ def users_create(
         can_manage_branding=can_manage_branding is not None,
         can_manage_admin_users=can_manage_admin_users is not None,
     )
-
     try:
         create_admin_user(db, payload)
     except ValueError:
@@ -348,9 +418,6 @@ def users_save(
     except PermissionError:
         return redirect_to_login()
 
-    if not (user.is_superadmin or user.can_manage_admin_users):
-        return RedirectResponse(url="/webadmin/users", status_code=303)
-
     payload = AdminUserUpdate(
         email=email.strip(),
         password=password.strip() or None,
@@ -377,8 +444,8 @@ def settings_page(request: Request, db: Session = Depends(get_db)):
     settings = get_settings(db)
     return templates.TemplateResponse(
         request,
-        name="settings.html",
-        context={
+        "settings.html",
+        {
             "request": request,
             "settings": settings,
             "current_user": user,
@@ -404,9 +471,6 @@ def settings_save(
         user = require_web_user(request, db)
     except PermissionError:
         return redirect_to_login()
-
-    if not (user.is_superadmin or user.can_manage_branding):
-        return RedirectResponse(url="/webadmin/settings", status_code=303)
 
     uploaded_icon = save_upload(app_icon_file, "app_icon")
     uploaded_logo = save_upload(login_logo_file, "login_logo")

@@ -1,89 +1,102 @@
 {% extends "base.html" %}
 
-{% block page_title %}Web Admin Dashboard{% endblock %}
-{% block page_subtitle %}Központi állapotfigyelés és gyors áttekintés{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block page_subtitle %}Áttekintés az eszközökről, üzenetekről és olvasási statisztikákról{% endblock %}
 
 {% block content %}
-<div style="display:grid; grid-template-columns:repeat(4, minmax(180px, 1fr)); gap:18px; margin-bottom:24px;">
+<div class="grid grid-4">
     <div class="card">
-        <div class="small">Program neve</div>
-        <div style="font-size:24px; font-weight:700;">{{ settings.app_name }}</div>
+        <div class="muted">Összes eszköz</div>
+        <div class="stat-value">{{ stats.total_devices }}</div>
     </div>
     <div class="card">
-        <div class="small">Cég neve</div>
-        <div style="font-size:24px; font-weight:700;">{{ settings.company_name or '-' }}</div>
+        <div class="muted">Online eszközök</div>
+        <div class="stat-value success">{{ stats.online_devices }}</div>
     </div>
     <div class="card">
-        <div class="small">Online gépek</div>
-        <div style="font-size:24px; font-weight:700; color:#16a34a;">{{ stats.online_devices }}</div>
+        <div class="muted">Függő üzenetek</div>
+        <div class="stat-value warning">{{ stats.queued_messages }}</div>
     </div>
     <div class="card">
-        <div class="small">Függő üzenetek</div>
-        <div style="font-size:24px; font-weight:700; color:#f59e0b;">{{ stats.queued_messages }}</div>
+        <div class="muted">Összes kiküldött üzenet</div>
+        <div class="stat-value">{{ stats.total_messages }}</div>
     </div>
 </div>
 
-<div style="display:grid; grid-template-columns:1.15fr 1fr; gap:18px;">
+<div class="grid grid-2">
     <div class="card">
-        <div class="section-title">Legutóbbi gépek</div>
-        <table>
-            <thead>
-                <tr>
-                    <th>Gépnév</th>
-                    <th>Tulajdonos</th>
-                    <th>Állapot</th>
-                    <th>Utolsó IP</th>
-                </tr>
-            </thead>
-            <tbody>
-            {% for device in recent_devices %}
-                <tr>
-                    <td>{{ device.machine_name }}</td>
-                    <td>{{ device.owner or '-' }}</td>
-                    <td>
-                        {% if device.is_online %}
-                            <span class="status-online">Online</span>
-                        {% else %}
-                            <span class="status-offline">Offline</span>
-                        {% endif %}
-                    </td>
-                    <td>{{ device.last_ip or '-' }}</td>
-                </tr>
-            {% else %}
-                <tr>
-                    <td colspan="4">Nincs még ismert gép.</td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
+        <div class="section-title">Olvasási statisztika</div>
+        <div class="stack">
+            <div>
+                <div class="muted">Átlagos olvasási idő</div>
+                <div class="stat-value">
+                    {{ "%.1f"|format(stats.avg_read_seconds) }} mp
+                </div>
+            </div>
+            <div class="muted">
+                Ez azt mutatja, hogy a kiküldött és már olvasott üzeneteket átlagosan mennyi idő alatt nyitják meg.
+            </div>
+        </div>
     </div>
 
     <div class="card">
-        <div class="section-title">Rendszerinformációk</div>
-        <table>
-            <tbody>
-                <tr>
-                    <th>Összes ismert gép</th>
-                    <td>{{ stats.total_devices }}</td>
-                </tr>
-                <tr>
-                    <th>Offline gépek</th>
-                    <td>{{ stats.offline_devices }}</td>
-                </tr>
-                <tr>
-                    <th>Web admin</th>
-                    <td>{{ 'engedélyezve' if settings.web_admin_enabled else 'kikapcsolva' }}</td>
-                </tr>
-                <tr>
-                    <th>App ikon útvonal</th>
-                    <td>{{ settings.app_icon_path or '-' }}</td>
-                </tr>
-                <tr>
-                    <th>Login logó útvonal</th>
-                    <td>{{ settings.login_logo_path or '-' }}</td>
-                </tr>
-            </tbody>
-        </table>
+        <div class="section-title">Gyors műveletek</div>
+        <div class="stack">
+            <a href="/webadmin/messages"><button type="button">Új üzenet küldése</button></a>
+            <a href="/webadmin/devices"><button type="button">Eszközök kezelése</button></a>
+            {% if current_user.is_superadmin %}
+            <a href="/webadmin/message-log"><button type="button">Teljes üzenet log megnyitása</button></a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="section-title">Legutóbbi aktív eszközök</div>
+
+    <table class="desktop-table">
+        <thead>
+            <tr>
+                <th>Gépnév</th>
+                <th>Tulajdonos</th>
+                <th>Állapot</th>
+                <th>Utolsó IP</th>
+                <th>Utolsó aktivitás</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for device in recent_devices %}
+            <tr>
+                <td>{{ device.machine_name }}</td>
+                <td>{{ device.owner or '-' }}</td>
+                <td>
+                    {% if device.is_online %}
+                        <span class="success">Online</span>
+                    {% else %}
+                        <span class="danger">Offline</span>
+                    {% endif %}
+                </td>
+                <td>{{ device.last_ip or '-' }}</td>
+                <td>{{ device.last_seen_at }}</td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="5">Nincs adat.</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="mobile-cards">
+        {% for device in recent_devices %}
+        <div class="card">
+            <div><strong>{{ device.machine_name }}</strong></div>
+            <div class="muted">Tulajdonos: {{ device.owner or '-' }}</div>
+            <div>{% if device.is_online %}<span class="success">Online</span>{% else %}<span class="danger">Offline</span>{% endif %}</div>
+            <div class="muted">IP: {{ device.last_ip or '-' }}</div>
+            <div class="muted">Utolsó aktivitás: {{ device.last_seen_at }}</div>
+        </div>
+        {% endfor %}
     </div>
 </div>
 {% endblock %}

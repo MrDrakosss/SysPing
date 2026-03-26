@@ -489,7 +489,7 @@ class AdminChatWindow(QMainWindow):
             self.device_list.clear()
 
             for device in self.devices:
-                label = f"{device['ADMIN_MACHINE_NAME']}  |  {'online' if device['is_online'] else 'offline'}"
+                label = f"{device['machine_name']}  |  {'online' if device['is_online'] else 'offline'}"
                 if device.get("owner"):
                     label += f"  |  {device['owner']}"
                 item = QListWidgetItem(label)
@@ -640,14 +640,14 @@ class AdminChatWindow(QMainWindow):
                     method="POST",
                     payload={
                         "sender_machine": ADMIN_MACHINE_NAME,
-                        "recipient_machine": device["ADMIN_MACHINE_NAME"],
+                        "recipient_machine": device["machine_name"],
                         "text": text,
                         "is_important": important,
                     },
                     token=self.token,
                 )
 
-                self.chats.setdefault(device["ADMIN_MACHINE_NAME"], []).append({
+                self.chats.setdefault(device["machine_name"], []).append({
                     "message_id": 0,
                     "sender": ADMIN_MACHINE_NAME,
                     "text": text,
@@ -659,7 +659,7 @@ class AdminChatWindow(QMainWindow):
                 ok_count += 1
 
             except Exception as e:
-                errors.append(f"{device['ADMIN_MACHINE_NAME']}: {e}")
+                errors.append(f"{device['machine_name']}: {e}")
 
         self.message_input.clear()
         self.refresh_chat_list()
@@ -683,7 +683,7 @@ class AdminChatWindow(QMainWindow):
         for i in range(self.device_list.count()):
             item = self.device_list.item(i)
             device = item.data(Qt.UserRole)
-            item.setSelected(device["ADMIN_MACHINE_NAME"] == self.current_chat)
+            item.setSelected(device["machine_name"] == self.current_chat)
 
     def load_selected_device_meta(self):
         selected = self.selected_devices()
@@ -695,7 +695,7 @@ class AdminChatWindow(QMainWindow):
             return
 
         device = selected[0]
-        self.device_name_input.setText(device["ADMIN_MACHINE_NAME"])
+        self.device_name_input.setText(device["machine_name"])
         self.display_name_input.setText(device.get("display_name", ""))
         self.owner_input.setText(device.get("owner", ""))
         self.note_input.setPlainText(device.get("note", ""))

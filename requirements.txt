@@ -1,5 +1,4 @@
 fastapi
-uvicorn
 uvicorn[standard]
 sqlalchemy
 pymysql
@@ -7,8 +6,7 @@ pydantic
 email-validator
 jinja2
 python-multipart
+python-dotenv
 PySide6
 websocket-client
 requests
-dotenv
-websockets

@@ -4,8 +4,13 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
 from db import SessionLocal
+from schemas import MessageOut
 from services.devices import set_device_offline, upsert_device
-from services.messages import deliver_pending_messages, mark_message_read
+from services.messages import (
+    deliver_pending_messages,
+    list_recent_messages_for_machine,
+    mark_message_read,
+)
 
 router = APIRouter(tags=["client_ws"])
 
@@ -14,6 +19,15 @@ online_clients: Dict[str, List[WebSocket]] = {}
 
 def get_online_clients() -> Dict[str, List[WebSocket]]:
     return online_clients
+
+
+@router.get("/client/messages/{machine_name}", response_model=list[MessageOut])
+def client_recent_messages(machine_name: str, limit: int = 20):
+    db: Session = SessionLocal()
+    try:
+        return list_recent_messages_for_machine(db, machine_name, limit=limit)
+    finally:
+        db.close()
 
 
 @router.websocket("/ws/client/{machine_name}")
@@ -57,6 +71,9 @@ async def client_ws(websocket: WebSocket, machine_name: str):
 
         if not sockets:
             online_clients.pop(machine_name, None)
-            set_device_offline(db, machine_name)
+            try:
+                set_device_offline(db, machine_name)
+            except Exception as e:
+                print(f"[WS] Offline állapot mentési hiba {machine_name}: {e}")
 
         db.close()

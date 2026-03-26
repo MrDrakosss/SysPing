@@ -25,11 +25,16 @@ class Message(Base):
     __tablename__ = "messages"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
     sender_machine: Mapped[str] = mapped_column(String(120), index=True)
+    sender_admin_user_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+
     recipient_machine: Mapped[str] = mapped_column(String(120), index=True)
+
     text: Mapped[str] = mapped_column(Text)
     is_important: Mapped[bool] = mapped_column(Boolean, default=False)
     status: Mapped[str] = mapped_column(String(32), default="queued")  # queued, delivered, read
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     read_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

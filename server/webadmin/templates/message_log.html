@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block page_title %}Teljes üzenet log{% endblock %}
+{% block page_subtitle %}Minden admin által kiküldött összes üzenet{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="section-title">Teljes log</div>
+
+    <table class="desktop-table">
+        <thead>
+            <tr>
+                <th>Küldő</th>
+                <th>Címzett</th>
+                <th>Üzenet</th>
+                <th>Típus</th>
+                <th>Kiküldve</th>
+                <th>Kézbesítve</th>
+                <th>Olvasva</th>
+                <th>Státusz</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for msg in messages %}
+            <tr>
+                <td>{{ msg.sender_machine }}</td>
+                <td>{{ msg.recipient_machine }}</td>
+                <td>{{ msg.text }}</td>
+                <td>{% if msg.is_important %}<span class="danger">Fontos</span>{% else %}Normál{% endif %}</td>
+                <td>{{ msg.created_at }}</td>
+                <td>{{ msg.delivered_at or '-' }}</td>
+                <td>{{ msg.read_at or '-' }}</td>
+                <td>{{ msg.status }}</td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="8">Nincs üzenet a logban.</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="mobile-cards">
+        {% for msg in messages %}
+        <div class="card">
+            <div><strong>{{ msg.sender_machine }}</strong> → {{ msg.recipient_machine }}</div>
+            <div style="margin:8px 0;">{{ msg.text }}</div>
+            <div>{% if msg.is_important %}<span class="danger">Fontos</span>{% else %}Normál{% endif %}</div>
+            <div class="muted">Kiküldve: {{ msg.created_at }}</div>
+            <div class="muted">Kézbesítve: {{ msg.delivered_at or '-' }}</div>
+            <div class="muted">Olvasva: {{ msg.read_at or '-' }}</div>
+            <div class="muted">Státusz: {{ msg.status }}</div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

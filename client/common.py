@@ -18,24 +18,12 @@ def http_get_json(path: str, token: str | None = None):
     if token:
         headers["Authorization"] = f"Bearer {token}"
 
-    req = urllib.request.Request(f"{SERVER_HTTP}{path}", headers=headers, method="GET")
-    with urllib.request.urlopen(req, timeout=10) as resp:
-        return json.loads(resp.read().decode("utf-8"))
-
-
-def http_patch_json(path: str, payload: dict, token: str | None = None):
-    data = json.dumps(payload).encode("utf-8")
-    headers = {"Content-Type": "application/json"}
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-
     req = urllib.request.Request(
         f"{SERVER_HTTP}{path}",
-        data=data,
         headers=headers,
-        method="PATCH",
+        method="GET",
     )
-    with urllib.request.urlopen(req, timeout=10) as resp:
+    with urllib.request.urlopen(req, timeout=15) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
 
@@ -51,7 +39,23 @@ def http_post_json(path: str, payload: dict, token: str | None = None):
         headers=headers,
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=10) as resp:
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
+def http_patch_json(path: str, payload: dict, token: str | None = None):
+    data = json.dumps(payload).encode("utf-8")
+    headers = {"Content-Type": "application/json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
+    req = urllib.request.Request(
+        f"{SERVER_HTTP}{path}",
+        data=data,
+        headers=headers,
+        method="PATCH",
+    )
+    with urllib.request.urlopen(req, timeout=15) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
 
@@ -60,8 +64,12 @@ def http_delete(path: str, token: str | None = None):
     if token:
         headers["Authorization"] = f"Bearer {token}"
 
-    req = urllib.request.Request(f"{SERVER_HTTP}{path}", headers=headers, method="DELETE")
-    with urllib.request.urlopen(req, timeout=10) as resp:
+    req = urllib.request.Request(
+        f"{SERVER_HTTP}{path}",
+        headers=headers,
+        method="DELETE",
+    )
+    with urllib.request.urlopen(req, timeout=15) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
 
@@ -70,6 +78,7 @@ def fetch_branding() -> dict:
         return http_get_json("/public/branding")
     except Exception:
         return {
+            "id": 0,
             "app_name": "SysPing",
             "company_name": "",
             "app_icon_path": "",

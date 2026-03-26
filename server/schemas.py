@@ -1,4 +1,5 @@
 from datetime import datetime
+
 from pydantic import BaseModel, EmailStr
 
 
@@ -24,15 +25,15 @@ class DeviceUpdate(BaseModel):
 
 
 class SendMessageIn(BaseModel):
-    sender_machine: str
     recipient_machine: str
     text: str
     is_important: bool = False
 
 
-class ClientEvent(BaseModel):
-    type: str
-    message_id: int | None = None
+class BulkSendMessageIn(BaseModel):
+    recipient_machines: list[str]
+    text: str
+    is_important: bool = False
 
 
 class LoginIn(BaseModel):
@@ -108,3 +109,28 @@ class AppSettingUpdate(BaseModel):
     primary_color: str | None = None
     secondary_color: str | None = None
     web_admin_enabled: bool | None = None
+
+
+class MessageOut(BaseModel):
+    id: int
+    sender_machine: str
+    sender_admin_user_id: int | None
+    recipient_machine: str
+    text: str
+    is_important: bool
+    status: str
+    created_at: datetime
+    delivered_at: datetime | None
+    read_at: datetime | None
+
+    class Config:
+        from_attributes = True
+
+
+class DashboardStatsOut(BaseModel):
+    total_devices: int
+    online_devices: int
+    offline_devices: int
+    queued_messages: int
+    total_messages: int
+    avg_read_seconds: float

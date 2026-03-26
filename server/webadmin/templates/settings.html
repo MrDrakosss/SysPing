@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
 {% block page_title %}Beállítások{% endblock %}
-{% block page_subtitle %}Programnév, branding és web admin alapbeállítások{% endblock %}
+{% block page_subtitle %}Programnév, logó, ikon és megjelenési beállítások{% endblock %}
 
 {% block content %}
 <div class="card">
-    <div class="section-title">Branding beállítások</div>
+    <div class="section-title">Branding és webadmin beállítások</div>
 
-    <form method="post" action="/webadmin/settings/save" enctype="multipart/form-data">
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px;">
+    <form method="post" action="/webadmin/settings/save" enctype="multipart/form-data" class="stack">
+        <div class="grid grid-2">
             <div>
                 <label>Program neve</label>
                 <input type="text" name="app_name" value="{{ settings.app_name }}">
@@ -19,22 +19,23 @@
             </div>
         </div>
 
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px;">
+        <div class="grid grid-2">
             <div>
                 <label>App ikon URL / útvonal</label>
                 <input type="text" name="app_icon_path" value="{{ settings.app_icon_path }}">
-                <div class="small" style="margin-top:6px;">Vagy tölts fel új ikont:</div>
-                <input type="file" name="app_icon_file" accept=".png,.jpg,.jpeg,.ico,.svg,.webp">
+                <div class="muted" style="margin:6px 0;">Vagy tölts fel új app ikont:</div>
+                <input type="file" name="app_icon_file" accept=".png,.jpg,.jpeg,.ico,.webp,.svg">
             </div>
+
             <div>
                 <label>Login logó URL / útvonal</label>
                 <input type="text" name="login_logo_path" value="{{ settings.login_logo_path }}">
-                <div class="small" style="margin-top:6px;">Vagy tölts fel új logót:</div>
-                <input type="file" name="login_logo_file" accept=".png,.jpg,.jpeg,.ico,.svg,.webp">
+                <div class="muted" style="margin:6px 0;">Vagy tölts fel új login logót:</div>
+                <input type="file" name="login_logo_file" accept=".png,.jpg,.jpeg,.ico,.webp,.svg">
             </div>
         </div>
 
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px;">
+        <div class="grid grid-2">
             <div>
                 <label>Elsődleges szín</label>
                 <input type="color" name="primary_color" value="{{ settings.primary_color or '#2563eb' }}">
@@ -45,25 +46,28 @@
             </div>
         </div>
 
-        <div class="checks" style="margin-bottom:14px;">
-            <label>
-                <input type="checkbox" name="web_admin_enabled" {% if settings.web_admin_enabled %}checked{% endif %}>
-                Web admin engedélyezése
-            </label>
-        </div>
+        <label>
+            <input type="checkbox" name="web_admin_enabled" {% if settings.web_admin_enabled %}checked{% endif %}>
+            Web admin engedélyezése
+        </label>
 
         {% if settings.app_icon_path or settings.login_logo_path %}
-        <div style="display:flex; gap:24px; align-items:flex-start; margin-bottom:16px;">
+        <div class="grid grid-2">
             {% if settings.app_icon_path %}
-            <div>
-                <div class="small">Jelenlegi app ikon</div>
-                <img src="{{ settings.app_icon_path }}" alt="App icon" style="max-width:80px; max-height:80px;">
+            <div class="card" style="margin:0;">
+                <div class="muted">Jelenlegi app ikon</div>
+                <div style="margin-top:8px;">
+                    <img src="{{ settings.app_icon_path }}" alt="App icon" style="max-width:80px; max-height:80px;">
+                </div>
             </div>
             {% endif %}
+
             {% if settings.login_logo_path %}
-            <div>
-                <div class="small">Jelenlegi login logó</div>
-                <img src="{{ settings.login_logo_path }}" alt="Login logo" style="max-width:160px; max-height:80px;">
+            <div class="card" style="margin:0;">
+                <div class="muted">Jelenlegi login logó</div>
+                <div style="margin-top:8px;">
+                    <img src="{{ settings.login_logo_path }}" alt="Login logo" style="max-width:180px; max-height:90px;">
+                </div>
             </div>
             {% endif %}
         </div>
