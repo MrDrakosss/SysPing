@@ -72,6 +72,7 @@ def redirect_to_login() -> RedirectResponse:
 def webadmin_login_page(request: Request, db: Session = Depends(get_db)):
     settings = get_settings(db)
     return templates.TemplateResponse(
+        request,
         name="login.html",
         context={
             "request": request,
@@ -93,6 +94,7 @@ def webadmin_login_submit(
 
     if not user or not user.can_login_web_admin:
         return templates.TemplateResponse(
+            request,
             name="login.html",
             context={
                 "request": request,
@@ -151,6 +153,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     ).scalars().all()
 
     return templates.TemplateResponse(
+        request,
         name="dashboard.html",
         context={
             "request": request,
@@ -183,6 +186,7 @@ def devices_page(
     devices = list_devices(db, search=search, include_deleted=include_deleted)
 
     return templates.TemplateResponse(
+        request,
         name="devices.html",
         context={
             "request": request,
@@ -266,6 +270,7 @@ def users_page(request: Request, db: Session = Depends(get_db)):
     users = list_admin_users(db)
 
     return templates.TemplateResponse(
+        request,
         name="users.html",
         context={
             "request": request,
@@ -371,6 +376,7 @@ def settings_page(request: Request, db: Session = Depends(get_db)):
 
     settings = get_settings(db)
     return templates.TemplateResponse(
+        request,
         name="settings.html",
         context={
             "request": request,
