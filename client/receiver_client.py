@@ -469,7 +469,7 @@ class ReceiverWindow(QMainWindow):
         open_action.triggered.connect(self.restore_from_tray)
         menu.addAction(open_action)
 
-        quit_action = QAction("Program leállítása (admin joggal)", self)
+        quit_action = QAction("Leállítás", self)
         quit_action.triggered.connect(self.request_full_exit)
         menu.addAction(quit_action)
 
