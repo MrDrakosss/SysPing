@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<SysPingConfig>
+  <Server>
+    <HttpUrl>http://127.0.0.1:8080</HttpUrl>
+    <WsUrl>ws://127.0.0.1:8080/ws/client</WsUrl>
+  </Server>
+  <Client>
+    <MachineName></MachineName>
+    <AutoStart>true</AutoStart>
+    <StartMinimized>true</StartMinimized>
+  </Client>
+</SysPingConfig>

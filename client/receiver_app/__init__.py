@@ -1,0 +1,3 @@
+"""
+Receiver alkalmazás csomag.
+"""
