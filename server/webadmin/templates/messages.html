@@ -13,14 +13,15 @@
                     {{ current_user.display_name or current_user.username }}
                 </option>
                 {% for item in sender_options %}
-                    <option value="{{ item }}">{{ item }}</option>
+                <option value="{{ item }}">{{ item }}</option>
                 {% endfor %}
             </select>
 
             <select name="recipient_machine" required>
                 <option value="">Válassz gépet...</option>
                 {% for device in devices %}
-                    <option value="{{ device.machine_name }}">{{ device.machine_name }}{% if device.owner %} — {{ device.owner }}{% endif %}</option>
+                <option value="{{ device.machine_name }}">{{ device.machine_name }}{% if device.owner %} — {{
+                    device.owner }}{% endif %}</option>
                 {% endfor %}
             </select>
 
@@ -38,11 +39,12 @@
                     {{ current_user.display_name or current_user.username }}
                 </option>
                 {% for item in sender_options %}
-                    <option value="{{ item }}">{{ item }}</option>
+                <option value="{{ item }}">{{ item }}</option>
                 {% endfor %}
             </select>
 
-            <div style="max-height:220px; overflow:auto; border:1px solid var(--border); border-radius:10px; padding:10px;">
+            <div
+                style="max-height:220px; overflow:auto; border:1px solid var(--border); border-radius:10px; padding:10px;">
                 {% for device in devices %}
                 <div style="margin-bottom:8px;">
                     <label>
@@ -62,6 +64,14 @@
 <div class="card">
     <div class="section-title">Saját kiküldött üzeneteim</div>
 
+    <div class="card">
+        <form method="get" action="/webadmin/messages" class="stack">
+            <input type="text" name="q" value="{{ filters.q }}"
+                placeholder="Keresés szövegben, címzettben, küldő névben...">
+            <input type="text" name="recipient" value="{{ filters.recipient }}" placeholder="Címzett gépnév szűrés">
+            <button type="submit">Szűrés</button>
+        </form>
+    </div>
     <table class="desktop-table">
         <thead>
             <tr>
@@ -76,7 +86,7 @@
             </tr>
         </thead>
         <tbody>
-        {% for msg in messages %}
+            {% for msg in messages %}
             <tr>
                 <td>{{ msg.sender_display_name or msg.sender_machine }}</td>
                 <td>{{ msg.recipient_machine }}</td>
@@ -87,18 +97,38 @@
                 <td>{{ msg.read_at or '-' }}</td>
                 <td>{{ msg.status }}</td>
             </tr>
-        {% else %}
+            {% else %}
             <tr>
                 <td colspan="8">Még nincs kiküldött üzenet.</td>
             </tr>
-        {% endfor %}
+            {% endfor %}
         </tbody>
     </table>
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+            <div class="muted">
+                Oldal {{ pager.page }} / {{ pager.total_pages }} · Összesen {{ pager.total_items }} találat
+            </div>
+            <div style="display:flex; gap:8px;">
+                {% if pager.has_prev %}
+                <a
+                    href="/webadmin/messages?page={{ pager.page - 1 }}&q={{ filters.q }}&recipient={{ filters.recipient }}"><button
+                        type="button">Előző</button></a>
+                {% endif %}
+                {% if pager.has_next %}
+                <a
+                    href="/webadmin/messages?page={{ pager.page + 1 }}&q={{ filters.q }}&recipient={{ filters.recipient }}"><button
+                        type="button">Következő</button></a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
 
     <div class="mobile-cards">
         {% for msg in messages %}
         <div class="card">
-            <div><strong>{{ msg.sender_display_name or msg.sender_machine }}</strong> → {{ msg.recipient_machine }}</div>
+            <div><strong>{{ msg.sender_display_name or msg.sender_machine }}</strong> → {{ msg.recipient_machine }}
+            </div>
             <div style="margin:8px 0;">{{ msg.text }}</div>
             <div>{% if msg.is_important %}<span class="danger">Fontos</span>{% else %}Normál{% endif %}</div>
             <div class="muted">Kiküldve: {{ msg.created_at }}</div>

@@ -7,6 +7,23 @@
 <div class="card">
     <div class="section-title">Teljes log</div>
 
+    <div class="card">
+        <form method="get" action="/webadmin/message-log" class="stack">
+            <input type="text" name="q" value="{{ filters.q }}"
+                placeholder="Keresés szövegben, küldőben vagy címzettben...">
+            <div class="grid grid-2">
+                <input type="text" name="sender" value="{{ filters.sender }}" placeholder="Küldő user vagy küldő név">
+                <input type="text" name="recipient" value="{{ filters.recipient }}" placeholder="Címzett gépnév">
+            </div>
+            <select name="status">
+                <option value="">Minden státusz</option>
+                <option value="queued" {% if filters.status=='queued' %}selected{% endif %}>queued</option>
+                <option value="delivered" {% if filters.status=='delivered' %}selected{% endif %}>delivered</option>
+                <option value="read" {% if filters.status=='read' %}selected{% endif %}>read</option>
+            </select>
+            <button type="submit">Szűrés</button>
+        </form>
+    </div>
     <table class="desktop-table">
         <thead>
             <tr>
@@ -22,7 +39,7 @@
             </tr>
         </thead>
         <tbody>
-        {% for msg in messages %}
+            {% for msg in messages %}
             <tr>
                 <td>{{ msg.sender_machine }}</td>
                 <td>{{ msg.sender_display_name or '-' }}</td>
@@ -34,18 +51,38 @@
                 <td>{{ msg.read_at or '-' }}</td>
                 <td>{{ msg.status }}</td>
             </tr>
-        {% else %}
+            {% else %}
             <tr>
                 <td colspan="9">Nincs üzenet a logban.</td>
             </tr>
-        {% endfor %}
+            {% endfor %}
         </tbody>
     </table>
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+            <div class="muted">
+                Oldal {{ pager.page }} / {{ pager.total_pages }} · Összesen {{ pager.total_items }} találat
+            </div>
+            <div style="display:flex; gap:8px;">
+                {% if pager.has_prev %}
+                <a
+                    href="/webadmin/message-log?page={{ pager.page - 1 }}&q={{ filters.q }}&sender={{ filters.sender }}&recipient={{ filters.recipient }}&status={{ filters.status }}"><button
+                        type="button">Előző</button></a>
+                {% endif %}
+                {% if pager.has_next %}
+                <a
+                    href="/webadmin/message-log?page={{ pager.page + 1 }}&q={{ filters.q }}&sender={{ filters.sender }}&recipient={{ filters.recipient }}&status={{ filters.status }}"><button
+                        type="button">Következő</button></a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
 
     <div class="mobile-cards">
         {% for msg in messages %}
         <div class="card">
-            <div><strong>{{ msg.sender_display_name or msg.sender_machine }}</strong> → {{ msg.recipient_machine }}</div>
+            <div><strong>{{ msg.sender_display_name or msg.sender_machine }}</strong> → {{ msg.recipient_machine }}
+            </div>
             <div class="muted">User: {{ msg.sender_machine }}</div>
             <div style="margin:8px 0;">{{ msg.text }}</div>
             <div>{% if msg.is_important %}<span class="danger">Fontos</span>{% else %}Normál{% endif %}</div>

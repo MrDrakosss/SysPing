@@ -236,7 +236,15 @@
                 <div class="page-title">{% block page_title %}{% endblock %}</div>
                 <div class="page-subtitle">{% block page_subtitle %}{% endblock %}</div>
             </div>
-            <div class="badge">Belépve: {{ current_user.display_name or current_user.username }}</div>
+            <div class="account-menu" id="accountMenu">
+                <button class="account-btn" type="button" onclick="toggleAccountMenu()">
+                    {{ current_user.display_name or current_user.username }}
+                </button>
+                <div class="account-dropdown">
+                    <a href="/webadmin/account">Saját adatok</a>
+                    <a href="/webadmin/logout">Kijelentkezés</a>
+                </div>
+            </div>
         </div>
 
         {% block content %}{% endblock %}
