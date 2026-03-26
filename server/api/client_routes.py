@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, List
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
@@ -9,10 +9,10 @@ from services.messages import deliver_pending_messages, mark_message_read
 
 router = APIRouter(tags=["client_ws"])
 
-online_clients: Dict[str, WebSocket] = {}
+online_clients: Dict[str, List[WebSocket]] = {}
 
 
-def get_online_clients() -> Dict[str, WebSocket]:
+def get_online_clients() -> Dict[str, List[WebSocket]]:
     return online_clients
 
 
@@ -27,7 +27,11 @@ async def client_ws(websocket: WebSocket, machine_name: str):
         print(f"[WS] Csatlakozott: {machine_name} ({client_ip})")
 
         upsert_device(db, machine_name, client_ip)
-        online_clients[machine_name] = websocket
+
+        if machine_name not in online_clients:
+            online_clients[machine_name] = []
+        online_clients[machine_name].append(websocket)
+
         await deliver_pending_messages(db, machine_name, online_clients)
 
         while True:
@@ -47,6 +51,12 @@ async def client_ws(websocket: WebSocket, machine_name: str):
     except Exception as e:
         print(f"[WS] Hiba {machine_name} esetén: {e}")
     finally:
-        online_clients.pop(machine_name, None)
-        set_device_offline(db, machine_name)
+        sockets = online_clients.get(machine_name, [])
+        if websocket in sockets:
+            sockets.remove(websocket)
+
+        if not sockets:
+            online_clients.pop(machine_name, None)
+            set_device_offline(db, machine_name)
+
         db.close()

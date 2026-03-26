@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict
+from typing import Dict, List
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -12,10 +12,10 @@ from schemas import SendMessageIn
 async def deliver_pending_messages(
     db: Session,
     machine_name: str,
-    online_clients: Dict[str, WebSocket],
+    online_clients: Dict[str, List[WebSocket]],
 ) -> None:
-    ws = online_clients.get(machine_name)
-    if not ws:
+    sockets = online_clients.get(machine_name, [])
+    if not sockets:
         return
 
     pending = db.execute(
@@ -26,20 +26,28 @@ async def deliver_pending_messages(
     ).scalars().all()
 
     for msg in pending:
-        await ws.send_json(
-            {
-                "type": "message",
-                "message_id": msg.id,
-                "sender_machine": msg.sender_machine,
-                "recipient_machine": msg.recipient_machine,
-                "text": msg.text,
-                "is_important": msg.is_important,
-                "created_at": msg.created_at.isoformat(),
-            }
-        )
-        msg.status = "delivered"
-        msg.delivered_at = datetime.utcnow()
-        db.add(msg)
+        payload = {
+            "type": "message",
+            "message_id": msg.id,
+            "sender_machine": msg.sender_machine,
+            "recipient_machine": msg.recipient_machine,
+            "text": msg.text,
+            "is_important": msg.is_important,
+            "created_at": msg.created_at.isoformat(),
+        }
+
+        delivered = False
+        for ws in list(sockets):
+            try:
+                await ws.send_json(payload)
+                delivered = True
+            except Exception:
+                pass
+
+        if delivered:
+            msg.status = "delivered"
+            msg.delivered_at = datetime.utcnow()
+            db.add(msg)
 
     db.commit()
 
@@ -47,7 +55,7 @@ async def deliver_pending_messages(
 async def create_message(
     db: Session,
     payload: SendMessageIn,
-    online_clients: Dict[str, WebSocket],
+    online_clients: Dict[str, List[WebSocket]],
 ) -> dict:
     recipient = db.execute(
         select(Device)

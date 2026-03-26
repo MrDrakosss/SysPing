@@ -5,7 +5,11 @@ from pathlib import Path
 
 SERVER_HTTP = "http://172.20.100.88:8080"
 SERVER_WS = "ws://172.20.100.88:8080/ws/client"
-MACHINE_NAME = socket.gethostname()
+
+HOSTNAME = socket.gethostname()
+MACHINE_NAME = HOSTNAME
+ADMIN_MACHINE_NAME = f"{HOSTNAME}-ADMIN"
+
 TOKEN_FILE = Path.home() / ".sysping_admin_token.json"
 
 
@@ -77,7 +81,10 @@ def fetch_branding() -> dict:
 
 
 def save_admin_token(token: str, user: dict):
-    TOKEN_FILE.write_text(json.dumps({"token": token, "user": user}, ensure_ascii=False), encoding="utf-8")
+    TOKEN_FILE.write_text(
+        json.dumps({"token": token, "user": user}, ensure_ascii=False),
+        encoding="utf-8",
+    )
 
 
 def load_admin_token() -> tuple[str | None, dict | None]:

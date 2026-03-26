@@ -33,7 +33,7 @@ from PySide6.QtWidgets import (
 )
 
 from common import (
-    MACHINE_NAME,
+    ADMIN_MACHINE_NAME,
     SERVER_HTTP,
     SERVER_WS,
     clear_admin_token,
@@ -165,7 +165,7 @@ class ServerListenerThread(threading.Thread):
         while self.running:
             try:
                 self.signals.server_status.emit("connecting")
-                ws_url = f"{SERVER_WS}/{MACHINE_NAME}"
+                ws_url = f"{SERVER_WS}/{ADMIN_MACHINE_NAME}"
                 print(f"[Admin] Kapcsolódás ide: {ws_url}")
                 self.ws = create_connection(ws_url, timeout=30)
                 print("[Admin] WebSocket kapcsolat létrejött")
@@ -263,7 +263,7 @@ class AdminChatWindow(QMainWindow):
         self.branding = fetch_branding()
         self.app_name = self.branding.get("app_name", "SysPing")
 
-        self.setWindowTitle(f"{self.app_name} Admin - {user_info['username']} - {MACHINE_NAME}")
+        self.setWindowTitle(f"{self.app_name} Admin - {user_info['username']} - {ADMIN_MACHINE_NAME}")
         self.resize(1500, 850)
 
         self.devices = []
@@ -489,7 +489,7 @@ class AdminChatWindow(QMainWindow):
             self.device_list.clear()
 
             for device in self.devices:
-                label = f"{device['machine_name']}  |  {'online' if device['is_online'] else 'offline'}"
+                label = f"{device['ADMIN_MACHINE_NAME']}  |  {'online' if device['is_online'] else 'offline'}"
                 if device.get("owner"):
                     label += f"  |  {device['owner']}"
                 item = QListWidgetItem(label)
@@ -639,17 +639,17 @@ class AdminChatWindow(QMainWindow):
                     "/admin/messages",
                     method="POST",
                     payload={
-                        "sender_machine": MACHINE_NAME,
-                        "recipient_machine": device["machine_name"],
+                        "sender_machine": ADMIN_MACHINE_NAME,
+                        "recipient_machine": device["ADMIN_MACHINE_NAME"],
                         "text": text,
                         "is_important": important,
                     },
                     token=self.token,
                 )
 
-                self.chats.setdefault(device["machine_name"], []).append({
+                self.chats.setdefault(device["ADMIN_MACHINE_NAME"], []).append({
                     "message_id": 0,
-                    "sender": MACHINE_NAME,
+                    "sender": ADMIN_MACHINE_NAME,
                     "text": text,
                     "important": important,
                     "timestamp": "most",
@@ -659,7 +659,7 @@ class AdminChatWindow(QMainWindow):
                 ok_count += 1
 
             except Exception as e:
-                errors.append(f"{device['machine_name']}: {e}")
+                errors.append(f"{device['ADMIN_MACHINE_NAME']}: {e}")
 
         self.message_input.clear()
         self.refresh_chat_list()
@@ -683,7 +683,7 @@ class AdminChatWindow(QMainWindow):
         for i in range(self.device_list.count()):
             item = self.device_list.item(i)
             device = item.data(Qt.UserRole)
-            item.setSelected(device["machine_name"] == self.current_chat)
+            item.setSelected(device["ADMIN_MACHINE_NAME"] == self.current_chat)
 
     def load_selected_device_meta(self):
         selected = self.selected_devices()
@@ -695,7 +695,7 @@ class AdminChatWindow(QMainWindow):
             return
 
         device = selected[0]
-        self.device_name_input.setText(device["machine_name"])
+        self.device_name_input.setText(device["ADMIN_MACHINE_NAME"])
         self.display_name_input.setText(device.get("display_name", ""))
         self.owner_input.setText(device.get("owner", ""))
         self.note_input.setPlainText(device.get("note", ""))

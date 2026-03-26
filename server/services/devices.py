@@ -8,39 +8,48 @@ from schemas import DeviceUpdate
 
 
 def upsert_device(db: Session, machine_name: str, ip: str | None = None) -> Device:
-    device = db.execute(
-        select(Device).where(Device.machine_name == machine_name)
-    ).scalar_one_or_none()
+    try:
+        device = db.execute(
+            select(Device).where(Device.machine_name == machine_name)
+        ).scalar_one_or_none()
 
-    if not device:
-        device = Device(
-            machine_name=machine_name,
-            display_name=machine_name,
-        )
+        if not device:
+            device = Device(
+                machine_name=machine_name,
+                display_name=machine_name,
+            )
 
-    if ip:
-        device.last_ip = ip
+        if ip:
+            device.last_ip = ip
 
-    device.is_online = True
-    device.is_deleted = False
-    device.last_seen_at = datetime.utcnow()
+        device.is_online = True
+        device.is_deleted = False
+        device.last_seen_at = datetime.utcnow()
 
-    db.add(device)
-    db.commit()
-    db.refresh(device)
-    return device
+        db.add(device)
+        db.commit()
+        db.refresh(device)
+        return device
+    except Exception:
+        db.rollback()
+        raise
 
 
 def set_device_offline(db: Session, machine_name: str) -> None:
-    device = db.execute(
-        select(Device).where(Device.machine_name == machine_name)
-    ).scalar_one_or_none()
+    try:
+        device = db.execute(
+            select(Device).where(Device.machine_name == machine_name)
+        ).scalar_one_or_none()
 
-    if device:
-        device.is_online = False
-        device.last_seen_at = datetime.utcnow()
-        db.add(device)
-        db.commit()
+        if device:
+            db.refresh(device)
+            device.is_online = False
+            device.last_seen_at = datetime.utcnow()
+            db.add(device)
+            db.commit()
+    except Exception:
+        db.rollback()
+        raise
 
 
 def list_devices(db: Session, search: str = "", include_deleted: bool = False) -> list[Device]:
