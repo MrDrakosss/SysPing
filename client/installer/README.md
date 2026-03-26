@@ -99,8 +99,6 @@ client\installer\output\SysPingInstaller.exe
 
 ## 🚀 Silent telepítés (központi deploy)
 
-A telepítő támogatja a parancssori paramétereket:
-
 ```bash
 SysPingInstaller.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART ^
 /SERVERHTTP="http://192.168.1.10:8080" ^
@@ -109,14 +107,13 @@ SysPingInstaller.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART ^
 /STARTMINIMIZED=1
 ```
 
-### Paraméterek:
+---
 
-| Paraméter | Leírás |
-|----------|--------|
-| /SERVERHTTP | HTTP API URL |
-| /SERVERWS | WebSocket URL |
-| /AUTOSTART | 1 = automatikus indítás |
-| /STARTMINIMIZED | 1 = háttérben indul |
+## ☁️ Intune telepítési parancs
+
+```powershell
+Start-Process -FilePath ".\SysPingInstaller.exe" -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SERVERHTTP="http://192.168.1.10:8080" /SERVERWS="ws://192.168.1.10:8080/ws/client" /AUTOSTART=1 /STARTMINIMIZED=1' -Wait
+```
 
 ---
 
@@ -144,20 +141,3 @@ python -m ensurepip --upgrade
 
 ### ❌ ISCC.exe nem található
 → ellenőrizd az Inno Setup telepítési útvonalát
-
----
-
-## 💡 Tipp
-
-Ha automatizálni akarod:
-
-- CI/CD (GitHub Actions)
-- PowerShell build script
-- tömeges deploy (GPO / Intune / PDQ)
-
----
-
-## 📌 Megjegyzés
-
-Ez a README kizárólag a **kliens telepítő buildeléséhez** tartozik.  
-A szerver és a teljes rendszer dokumentációja külön README fájlban található.
