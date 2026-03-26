@@ -4,26 +4,42 @@
 {% block page_subtitle %}Megjelenített név, email cím és jelszó módosítása{% endblock %}
 
 {% block content %}
-<div class="card">
-    <div class="section-title">Fiók adatai</div>
+<div class="max-w-3xl rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
+    <h2 class="text-lg font-semibold text-slate-900">Fiók adatai</h2>
 
-    <form method="post" action="/webadmin/account/save" class="stack">
+    <form method="post" action="/webadmin/account/save" class="mt-5 space-y-4">
         <div>
-            <label>Megjelenített név</label>
-            <input type="text" name="display_name" value="{{ current_user.display_name }}">
+            <label class="mb-2 block text-sm font-medium text-slate-700">Megjelenített név</label>
+            <input type="text" name="display_name" value="{{ current_user.display_name }}"
+                class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm">
         </div>
 
         <div>
-            <label>Email cím</label>
-            <input type="email" name="email" value="{{ current_user.email }}">
+            <label class="mb-2 block text-sm font-medium text-slate-700">Email cím</label>
+            <input type="email" name="email" value="{{ current_user.email }}"
+                class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm">
         </div>
 
         <div>
-            <label>Új jelszó</label>
-            <input type="password" name="password" placeholder="Csak ha módosítani szeretnéd">
+            <label class="mb-2 block text-sm font-medium text-slate-700">Új jelszó</label>
+            <input type="password" name="password" placeholder="Csak ha módosítani szeretnéd"
+                class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm">
         </div>
 
-        <button type="submit">Mentés</button>
+        <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+            <div><span class="font-medium text-slate-800">Felhasználónév:</span> {{ current_user.username }}</div>
+            <div class="mt-1"><span class="font-medium text-slate-800">Jogosultság:</span>
+                {% if current_user.is_superadmin %}
+                Superadmin
+                {% else %}
+                Admin
+                {% endif %}
+            </div>
+        </div>
+
+        <button type="submit" class="rounded-2xl bg-brand px-5 py-3 text-sm font-semibold text-white hover:opacity-95">
+            Mentés
+        </button>
     </form>
 </div>
 {% endblock %}

@@ -4,104 +4,152 @@
 {% block page_subtitle %}Admin jogosultságok és hozzáférések kezelése{% endblock %}
 
 {% block content %}
-<div class="card">
-    <div class="section-title">Új admin létrehozása</div>
+<div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
+    <h2 class="text-lg font-semibold text-slate-900">Új admin létrehozása</h2>
 
-    <form method="post" action="/webadmin/users/create" class="stack">
-        <div class="grid grid-2">
-            <input type="text" name="username" placeholder="Felhasználónév" required>
-            <input type="email" name="email" placeholder="Email cím" required>
+    <form method="post" action="/webadmin/users/create" class="mt-5 space-y-4">
+        <div class="grid gap-4 md:grid-cols-3">
+            <input type="text" name="username" placeholder="Felhasználónév" required
+                class="rounded-2xl border border-slate-200 px-4 py-3 text-sm">
+            <input type="text" name="display_name" placeholder="Megjelenített név"
+                class="rounded-2xl border border-slate-200 px-4 py-3 text-sm">
+            <input type="email" name="email" placeholder="Email cím" required
+                class="rounded-2xl border border-slate-200 px-4 py-3 text-sm">
         </div>
 
-        <input type="password" name="password" placeholder="Jelszó" required>
+        <input type="password" name="password" placeholder="Jelszó" required
+            class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm">
 
-        <div class="grid grid-2">
-            <label><input type="checkbox" name="is_active" checked> Aktív</label>
-            <label><input type="checkbox" name="can_login_admin_gui"> Admin GUI belépés</label>
-            <label><input type="checkbox" name="can_login_web_admin" checked> Web admin belépés</label>
-            <label><input type="checkbox" name="is_superadmin"> Superadmin</label>
-            <label><input type="checkbox" name="can_send_messages" checked> Küldhet üzenetet</label>
-            <label><input type="checkbox" name="can_manage_devices"> Eszközkezelés</label>
-            <label><input type="checkbox" name="can_manage_branding"> Branding kezelés</label>
-            <label><input type="checkbox" name="can_manage_admin_users"> Admin user kezelés</label>
+        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <label
+                class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700">
+                <input type="checkbox" name="is_active" checked class="rounded border-slate-300"> Aktív
+            </label>
+            <label
+                class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700">
+                <input type="checkbox" name="can_login_admin_gui" class="rounded border-slate-300"> GUI belépés
+            </label>
+            <label
+                class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700">
+                <input type="checkbox" name="can_login_web_admin" checked class="rounded border-slate-300"> Web admin
+            </label>
+            <label
+                class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700">
+                <input type="checkbox" name="is_superadmin" class="rounded border-slate-300"> Superadmin
+            </label>
+            <label
+                class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700">
+                <input type="checkbox" name="can_send_messages" checked class="rounded border-slate-300"> Üzenetküldés
+            </label>
+            <label
+                class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700">
+                <input type="checkbox" name="can_manage_devices" class="rounded border-slate-300"> Eszközkezelés
+            </label>
+            <label
+                class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700">
+                <input type="checkbox" name="can_manage_branding" class="rounded border-slate-300"> Branding
+            </label>
+            <label
+                class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700">
+                <input type="checkbox" name="can_manage_admin_users" class="rounded border-slate-300"> Admin user
+                kezelés
+            </label>
         </div>
 
-        <button type="submit">Felhasználó létrehozása</button>
+        <button type="submit" class="rounded-2xl bg-brand px-5 py-3 text-sm font-semibold text-white hover:opacity-95">
+            Felhasználó létrehozása
+        </button>
     </form>
 </div>
 
-<div class="card">
-    <div class="section-title">Meglévő adminok</div>
-
-    <table class="desktop-table">
-        <thead>
-            <tr>
-                <th>Felhasználó</th>
-                <th>Email</th>
-                <th>Jogok</th>
-                <th>Művelet</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for user in users %}
-            <tr>
-                <td>
-                    <strong>{{ user.username }}</strong><br>
-                    <span class="muted">Létrehozva: {{ user.created_at }}</span>
-                </td>
-                <td>
-                    <form method="post" action="/webadmin/users/{{ user.id }}/save" class="stack">
-                        <input type="email" name="email" value="{{ user.email }}" required>
-                        <input type="password" name="password" placeholder="Új jelszó (opcionális)">
-                </td>
-                <td>
-                        <div class="grid grid-2">
-                            <label><input type="checkbox" name="is_active" {% if user.is_active %}checked{% endif %}> Aktív</label>
-                            <label><input type="checkbox" name="can_login_admin_gui" {% if user.can_login_admin_gui %}checked{% endif %}> GUI belépés</label>
-                            <label><input type="checkbox" name="can_login_web_admin" {% if user.can_login_web_admin %}checked{% endif %}> Web admin</label>
-                            <label><input type="checkbox" name="is_superadmin" {% if user.is_superadmin %}checked{% endif %}> Superadmin</label>
-                            <label><input type="checkbox" name="can_send_messages" {% if user.can_send_messages %}checked{% endif %}> Üzenetküldés</label>
-                            <label><input type="checkbox" name="can_manage_devices" {% if user.can_manage_devices %}checked{% endif %}> Eszközkezelés</label>
-                            <label><input type="checkbox" name="can_manage_branding" {% if user.can_manage_branding %}checked{% endif %}> Branding</label>
-                            <label><input type="checkbox" name="can_manage_admin_users" {% if user.can_manage_admin_users %}checked{% endif %}> Admin user kezelés</label>
-                        </div>
-                </td>
-                <td>
-                        <button type="submit">Mentés</button>
-                    </form>
-                </td>
-            </tr>
-        {% else %}
-            <tr>
-                <td colspan="4">Nincs admin felhasználó.</td>
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-
-    <div class="mobile-cards">
-        {% for user in users %}
-        <div class="card">
-            <div><strong>{{ user.username }}</strong></div>
-            <div class="muted">Létrehozva: {{ user.created_at }}</div>
-
-            <form method="post" action="/webadmin/users/{{ user.id }}/save" class="stack" style="margin-top:10px;">
-                <input type="email" name="email" value="{{ user.email }}" required>
-                <input type="password" name="password" placeholder="Új jelszó (opcionális)">
-
-                <label><input type="checkbox" name="is_active" {% if user.is_active %}checked{% endif %}> Aktív</label>
-                <label><input type="checkbox" name="can_login_admin_gui" {% if user.can_login_admin_gui %}checked{% endif %}> GUI belépés</label>
-                <label><input type="checkbox" name="can_login_web_admin" {% if user.can_login_web_admin %}checked{% endif %}> Web admin</label>
-                <label><input type="checkbox" name="is_superadmin" {% if user.is_superadmin %}checked{% endif %}> Superadmin</label>
-                <label><input type="checkbox" name="can_send_messages" {% if user.can_send_messages %}checked{% endif %}> Üzenetküldés</label>
-                <label><input type="checkbox" name="can_manage_devices" {% if user.can_manage_devices %}checked{% endif %}> Eszközkezelés</label>
-                <label><input type="checkbox" name="can_manage_branding" {% if user.can_manage_branding %}checked{% endif %}> Branding</label>
-                <label><input type="checkbox" name="can_manage_admin_users" {% if user.can_manage_admin_users %}checked{% endif %}> Admin user kezelés</label>
-
-                <button type="submit">Mentés</button>
-            </form>
+<div class="mt-6 space-y-4">
+    {% for user in users %}
+    <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
+        <div class="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <div class="text-lg font-semibold text-slate-900">{{ user.display_name or user.username }}</div>
+                <div class="text-sm text-slate-500">
+                    @{{ user.username }} · {{ user.email }} · Létrehozva: {{ user.created_at }}
+                </div>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                {% if user.is_superadmin %}
+                <span
+                    class="inline-flex rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">Superadmin</span>
+                {% endif %}
+                {% if user.is_active %}
+                <span
+                    class="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">Aktív</span>
+                {% else %}
+                <span
+                    class="inline-flex rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700">Inaktív</span>
+                {% endif %}
+            </div>
         </div>
-        {% endfor %}
+
+        <form method="post" action="/webadmin/users/{{ user.id }}/save" class="space-y-4">
+            <div class="grid gap-4 md:grid-cols-3">
+                <input type="text" name="display_name" value="{{ user.display_name }}" placeholder="Megjelenített név"
+                    class="rounded-2xl border border-slate-200 px-4 py-3 text-sm">
+                <input type="email" name="email" value="{{ user.email }}" required
+                    class="rounded-2xl border border-slate-200 px-4 py-3 text-sm">
+                <input type="password" name="password" placeholder="Új jelszó (opcionális)"
+                    class="rounded-2xl border border-slate-200 px-4 py-3 text-sm">
+            </div>
+
+            <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <label
+                    class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700">
+                    <input type="checkbox" name="is_active" {% if user.is_active %}checked{% endif %}
+                        class="rounded border-slate-300"> Aktív
+                </label>
+                <label
+                    class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700">
+                    <input type="checkbox" name="can_login_admin_gui" {% if user.can_login_admin_gui %}checked{% endif
+                        %} class="rounded border-slate-300"> GUI belépés
+                </label>
+                <label
+                    class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700">
+                    <input type="checkbox" name="can_login_web_admin" {% if user.can_login_web_admin %}checked{% endif
+                        %} class="rounded border-slate-300"> Web admin
+                </label>
+                <label
+                    class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700">
+                    <input type="checkbox" name="is_superadmin" {% if user.is_superadmin %}checked{% endif %}
+                        class="rounded border-slate-300"> Superadmin
+                </label>
+                <label
+                    class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700">
+                    <input type="checkbox" name="can_send_messages" {% if user.can_send_messages %}checked{% endif %}
+                        class="rounded border-slate-300"> Üzenetküldés
+                </label>
+                <label
+                    class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700">
+                    <input type="checkbox" name="can_manage_devices" {% if user.can_manage_devices %}checked{% endif %}
+                        class="rounded border-slate-300"> Eszközkezelés
+                </label>
+                <label
+                    class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700">
+                    <input type="checkbox" name="can_manage_branding" {% if user.can_manage_branding %}checked{% endif
+                        %} class="rounded border-slate-300"> Branding
+                </label>
+                <label
+                    class="inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700">
+                    <input type="checkbox" name="can_manage_admin_users" {% if user.can_manage_admin_users %}checked{%
+                        endif %} class="rounded border-slate-300"> Admin user kezelés
+                </label>
+            </div>
+
+            <button type="submit"
+                class="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:opacity-95">
+                Mentés
+            </button>
+        </form>
     </div>
+    {% else %}
+    <div class="rounded-3xl border border-slate-200 bg-white p-10 text-center text-slate-500 shadow-soft">
+        Nincs admin felhasználó.
+    </div>
+    {% endfor %}
 </div>
 {% endblock %}

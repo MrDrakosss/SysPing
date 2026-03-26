@@ -4,114 +4,166 @@
 {% block page_subtitle %}Ismert gépek listája, keresés és metaadatok szerkesztése{% endblock %}
 
 {% block content %}
-<div class="card">
-    <form method="get" action="/webadmin/devices" class="stack">
-        <input type="text" name="search" value="{{ search }}" placeholder="Keresés gépnévre, tulajdonosra, IP-re vagy megjegyzésre...">
+<div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
+    <form method="get" action="/webadmin/devices" class="grid gap-4 lg:grid-cols-3">
+        <input type="text" name="search" value="{{ search }}"
+            placeholder="Keresés gépnévre, tulajdonosra, IP-re vagy megjegyzésre..."
+            class="rounded-2xl border border-slate-200 px-4 py-3 text-sm">
 
-        <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
-            <label>
-                <input type="checkbox" name="include_deleted" value="true" {% if include_deleted %}checked{% endif %}>
-                Archivált eszközök megjelenítése
-            </label>
-            <button type="submit">Keresés</button>
-        </div>
+        <label
+            class="inline-flex items-center gap-3 rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-700">
+            <input type="checkbox" name="include_deleted" value="true" {% if include_deleted %}checked{% endif %}
+                class="rounded border-slate-300">
+            Archivált eszközök megjelenítése
+        </label>
+
+        <button type="submit"
+            class="rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:opacity-95">
+            Keresés
+        </button>
     </form>
 </div>
 
-<div class="card">
-    <div class="section-title">Eszközlista</div>
+<div class="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
+    <div class="mb-4 flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-slate-900">Eszközlista</h2>
+        <div class="text-sm text-slate-500">{{ devices|length }} eszköz</div>
+    </div>
 
-    <table class="desktop-table">
-        <thead>
-            <tr>
-                <th>Gépnév</th>
-                <th>Megjelenített név</th>
-                <th>Tulajdonos</th>
-                <th>Megjegyzés</th>
-                <th>Állapot</th>
-                <th>Utolsó IP</th>
-                <th>Utolsó aktivitás</th>
-                <th>Műveletek</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for device in devices %}
-            <tr>
-                <td>{{ device.machine_name }}</td>
-                <td>
-                    <form method="post" action="/webadmin/devices/{{ device.id }}/save">
-                        <input type="text" name="display_name" value="{{ device.display_name }}">
-                </td>
-                <td>
-                        <input type="text" name="owner" value="{{ device.owner }}">
-                </td>
-                <td>
-                        <textarea name="note">{{ device.note }}</textarea>
-                </td>
-                <td>
-                    {% if device.is_deleted %}
-                        <span class="warning">Archivált</span>
-                    {% elif device.is_online %}
-                        <span class="success">Online</span>
-                    {% else %}
-                        <span class="danger">Offline</span>
-                    {% endif %}
-                </td>
-                <td>{{ device.last_ip or '-' }}</td>
-                <td>{{ device.last_seen_at }}</td>
-                <td>
-                        <button type="submit">Mentés</button>
-                    </form>
+    <div class="hidden overflow-x-auto xl:block">
+        <table class="min-w-full divide-y divide-slate-200">
+            <thead>
+                <tr class="text-left text-sm text-slate-500">
+                    <th class="px-4 py-3 font-medium">Gépnév</th>
+                    <th class="px-4 py-3 font-medium">Megjelenített név</th>
+                    <th class="px-4 py-3 font-medium">Tulajdonos</th>
+                    <th class="px-4 py-3 font-medium">Megjegyzés</th>
+                    <th class="px-4 py-3 font-medium">Állapot</th>
+                    <th class="px-4 py-3 font-medium">Utolsó IP</th>
+                    <th class="px-4 py-3 font-medium">Utolsó aktivitás</th>
+                    <th class="px-4 py-3 font-medium">Műveletek</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 text-sm">
+                {% for device in devices %}
+                <tr>
+                    <td class="px-4 py-4 align-top font-semibold text-slate-900">
+                        {{ device.machine_name }}
+                    </td>
+                    <td class="px-4 py-4 align-top" colspan="3">
+                        <form method="post" action="/webadmin/devices/{{ device.id }}/save"
+                            class="grid gap-3 lg:grid-cols-3">
+                            <input type="text" name="display_name" value="{{ device.display_name }}"
+                                placeholder="Megjelenített név"
+                                class="rounded-2xl border border-slate-200 px-3 py-2 text-sm">
 
-                    {% if not device.is_deleted %}
-                    <form method="post" action="/webadmin/devices/{{ device.id }}/archive" style="margin-top:8px;">
-                        <button type="submit" style="background:#dc2626;">Archiválás</button>
-                    </form>
-                    {% else %}
-                    <form method="post" action="/webadmin/devices/{{ device.id }}/restore" style="margin-top:8px;">
-                        <button type="submit" style="background:#16a34a;">Visszaállítás</button>
-                    </form>
-                    {% endif %}
-                </td>
-            </tr>
-        {% else %}
-            <tr>
-                <td colspan="8">Nincs megjeleníthető eszköz.</td>
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+                            <input type="text" name="owner" value="{{ device.owner }}" placeholder="Tulajdonos"
+                                class="rounded-2xl border border-slate-200 px-3 py-2 text-sm">
 
-    <div class="mobile-cards">
-        {% for device in devices %}
-        <div class="card">
-            <div><strong>{{ device.machine_name }}</strong></div>
-            <div class="muted">IP: {{ device.last_ip or '-' }}</div>
-            <div class="muted">Utolsó aktivitás: {{ device.last_seen_at }}</div>
-            <div style="margin:8px 0;">
-                {% if device.is_deleted %}
-                    <span class="warning">Archivált</span>
-                {% elif device.is_online %}
-                    <span class="success">Online</span>
+                            <textarea name="note" placeholder="Megjegyzés"
+                                class="min-h-[44px] rounded-2xl border border-slate-200 px-3 py-2 text-sm">{{ device.note }}</textarea>
+                    </td>
+                    <td class="px-4 py-4 align-top">
+                        {% if device.is_deleted %}
+                        <span
+                            class="inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">Archivált</span>
+                        {% elif device.is_online %}
+                        <span
+                            class="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">Online</span>
+                        {% else %}
+                        <span
+                            class="inline-flex rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700">Offline</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-4 align-top text-slate-600">{{ device.last_ip or '-' }}</td>
+                    <td class="px-4 py-4 align-top text-slate-600">{{ device.last_seen_at }}</td>
+                    <td class="px-4 py-4 align-top">
+                        <div class="flex flex-col gap-2">
+                            <button type="submit"
+                                class="rounded-2xl bg-brand px-4 py-2 text-sm font-semibold text-white hover:opacity-95">
+                                Mentés
+                            </button>
+                            </form>
+
+                            {% if not device.is_deleted %}
+                            <form method="post" action="/webadmin/devices/{{ device.id }}/archive">
+                                <button type="submit"
+                                    class="w-full rounded-2xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:opacity-95">
+                                    Archiválás
+                                </button>
+                            </form>
+                            {% else %}
+                            <form method="post" action="/webadmin/devices/{{ device.id }}/restore">
+                                <button type="submit"
+                                    class="w-full rounded-2xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:opacity-95">
+                                    Visszaállítás
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
                 {% else %}
-                    <span class="danger">Offline</span>
-                {% endif %}
+                <tr>
+                    <td colspan="8" class="px-4 py-8 text-center text-slate-500">Nincs megjeleníthető eszköz.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="space-y-4 xl:hidden">
+        {% for device in devices %}
+        <div class="rounded-2xl border border-slate-200 p-4">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <div class="font-semibold text-slate-900">{{ device.machine_name }}</div>
+                    <div class="mt-1 text-sm text-slate-500">IP: {{ device.last_ip or '-' }}</div>
+                    <div class="text-sm text-slate-500">Utolsó aktivitás: {{ device.last_seen_at }}</div>
+                </div>
+                <div>
+                    {% if device.is_deleted %}
+                    <span
+                        class="inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">Archivált</span>
+                    {% elif device.is_online %}
+                    <span
+                        class="inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">Online</span>
+                    {% else %}
+                    <span
+                        class="inline-flex rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700">Offline</span>
+                    {% endif %}
+                </div>
             </div>
 
-            <form method="post" action="/webadmin/devices/{{ device.id }}/save" class="stack">
-                <input type="text" name="display_name" value="{{ device.display_name }}" placeholder="Megjelenített név">
-                <input type="text" name="owner" value="{{ device.owner }}" placeholder="Tulajdonos">
-                <textarea name="note" placeholder="Megjegyzés">{{ device.note }}</textarea>
-                <button type="submit">Mentés</button>
+            <form method="post" action="/webadmin/devices/{{ device.id }}/save" class="mt-4 space-y-3">
+                <input type="text" name="display_name" value="{{ device.display_name }}" placeholder="Megjelenített név"
+                    class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm">
+
+                <input type="text" name="owner" value="{{ device.owner }}" placeholder="Tulajdonos"
+                    class="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm">
+
+                <textarea name="note" placeholder="Megjegyzés"
+                    class="min-h-[110px] w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm">{{ device.note }}</textarea>
+
+                <button type="submit"
+                    class="w-full rounded-2xl bg-brand px-4 py-3 text-sm font-semibold text-white hover:opacity-95">
+                    Mentés
+                </button>
             </form>
 
             {% if not device.is_deleted %}
-            <form method="post" action="/webadmin/devices/{{ device.id }}/archive" style="margin-top:8px;">
-                <button type="submit" style="background:#dc2626;">Archiválás</button>
+            <form method="post" action="/webadmin/devices/{{ device.id }}/archive" class="mt-3">
+                <button type="submit"
+                    class="w-full rounded-2xl bg-rose-600 px-4 py-3 text-sm font-semibold text-white hover:opacity-95">
+                    Archiválás
+                </button>
             </form>
             {% else %}
-            <form method="post" action="/webadmin/devices/{{ device.id }}/restore" style="margin-top:8px;">
-                <button type="submit" style="background:#16a34a;">Visszaállítás</button>
+            <form method="post" action="/webadmin/devices/{{ device.id }}/restore" class="mt-3">
+                <button type="submit"
+                    class="w-full rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:opacity-95">
+                    Visszaállítás
+                </button>
             </form>
             {% endif %}
         </div>
