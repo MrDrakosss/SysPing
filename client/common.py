@@ -3,8 +3,8 @@ import socket
 import urllib.request
 from pathlib import Path
 
-SERVER_HTTP = "http://192.168.1.10:8080"
-SERVER_WS = "ws://192.168.1.10:8080/ws/client"
+SERVER_HTTP = "http://172.20.100.88:8080"
+SERVER_WS = "ws://172.20.100.88:8080/ws/client"
 MACHINE_NAME = socket.gethostname()
 TOKEN_FILE = Path.home() / ".sysping_admin_token.json"
 

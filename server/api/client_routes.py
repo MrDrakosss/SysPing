@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Dict
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -25,6 +24,8 @@ async def client_ws(websocket: WebSocket, machine_name: str):
     client_ip = websocket.client.host if websocket.client else ""
 
     try:
+        print(f"[WS] Csatlakozott: {machine_name} ({client_ip})")
+
         upsert_device(db, machine_name, client_ip)
         online_clients[machine_name] = websocket
         await deliver_pending_messages(db, machine_name, online_clients)
@@ -42,7 +43,9 @@ async def client_ws(websocket: WebSocket, machine_name: str):
                     mark_message_read(db, machine_name, message_id)
 
     except WebSocketDisconnect:
-        pass
+        print(f"[WS] Lecsatlakozott: {machine_name}")
+    except Exception as e:
+        print(f"[WS] Hiba {machine_name} esetén: {e}")
     finally:
         online_clients.pop(machine_name, None)
         set_device_offline(db, machine_name)

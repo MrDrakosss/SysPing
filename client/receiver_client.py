@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from websocket import create_connection
 
 from PySide6.QtCore import QObject, Qt, QTimer, Signal
-from PySide6.QtGui import QAction, QColor, QFont, QIcon, QPainter, QPixmap
+from PySide6.QtGui import QAction, QColor, QFont, QIcon, QPainter, QPalette, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
@@ -28,13 +28,83 @@ from PySide6.QtWidgets import (
 from common import MACHINE_NAME, SERVER_WS, fetch_branding
 
 
+def is_dark_mode(app: QApplication) -> bool:
+    palette = app.palette()
+    window_color = palette.color(QPalette.Window)
+    return window_color.lightness() < 128
+
+
+def build_stylesheet(dark: bool) -> str:
+    if dark:
+        return """
+        QMainWindow, QWidget {
+            background: #1e1f22;
+            color: #e8eaed;
+        }
+        QListWidget, QTextBrowser {
+            background: #2b2d31;
+            color: #e8eaed;
+            border: 1px solid #3b3f45;
+            border-radius: 10px;
+            padding: 8px;
+            font-size: 14px;
+        }
+        QPushButton {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-weight: bold;
+        }
+        QPushButton:hover {
+            background: #2563eb;
+        }
+        QLabel {
+            color: #e8eaed;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        """
+    return """
+    QMainWindow, QWidget {
+        background: #eef2f7;
+        color: #111827;
+    }
+    QListWidget, QTextBrowser {
+        background: white;
+        color: #111827;
+        border: 1px solid #d0d5dd;
+        border-radius: 10px;
+        padding: 8px;
+        font-size: 14px;
+    }
+    QPushButton {
+        background: #2563eb;
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-weight: bold;
+    }
+    QPushButton:hover {
+        background: #1d4ed8;
+    }
+    QLabel {
+        color: #111827;
+        font-size: 13px;
+        font-weight: 600;
+    }
+    """
+
+
 class ReceiverSignals(QObject):
     server_message = Signal(dict)
     server_status = Signal(str)
 
 
 class ImportantAlertDialog(QDialog):
-    def __init__(self, sender: str, text: str):
+    def __init__(self, sender: str, text: str, dark: bool):
         super().__init__()
         self.setWindowTitle("FONTOS ÜZENET")
         self.setModal(True)
@@ -42,19 +112,10 @@ class ImportantAlertDialog(QDialog):
         self.resize(560, 280)
 
         title = QLabel(f"Fontos üzenet érkezett: {sender}")
-        title.setStyleSheet("font-size: 18px; font-weight: bold; color: #b91c1c;")
+        title.setStyleSheet("font-size: 18px; font-weight: bold; color: #ef4444;")
 
         body = QTextBrowser()
         body.setPlainText(text)
-        body.setStyleSheet("""
-            QTextBrowser {
-                background: white;
-                border: 1px solid #ef4444;
-                border-radius: 10px;
-                padding: 10px;
-                font-size: 14px;
-            }
-        """)
 
         ok_btn = QPushButton("Rendben")
         ok_btn.clicked.connect(self.accept)
@@ -64,6 +125,31 @@ class ImportantAlertDialog(QDialog):
         layout.addWidget(body)
         layout.addWidget(ok_btn, alignment=Qt.AlignRight)
         self.setLayout(layout)
+
+        if dark:
+            self.setStyleSheet("""
+                QDialog { background: #1e1f22; color: #e8eaed; }
+                QTextBrowser {
+                    background: #2b2d31;
+                    color: #e8eaed;
+                    border: 1px solid #ef4444;
+                    border-radius: 10px;
+                    padding: 10px;
+                    font-size: 14px;
+                }
+            """)
+        else:
+            self.setStyleSheet("""
+                QDialog { background: #fff7f7; color: #111827; }
+                QTextBrowser {
+                    background: white;
+                    color: #111827;
+                    border: 1px solid #ef4444;
+                    border-radius: 10px;
+                    padding: 10px;
+                    font-size: 14px;
+                }
+            """)
 
     def show_centered(self):
         screen = QApplication.primaryScreen()
@@ -87,7 +173,10 @@ class ServerListenerThread(threading.Thread):
         while self.running:
             try:
                 self.signals.server_status.emit("connecting")
-                self.ws = create_connection(f"{SERVER_WS}/{MACHINE_NAME}", timeout=30)
+                ws_url = f"{SERVER_WS}/{MACHINE_NAME}"
+                print(f"[Receiver] Kapcsolódás ide: {ws_url}")
+                self.ws = create_connection(ws_url, timeout=30)
+                print("[Receiver] WebSocket kapcsolat létrejött")
                 self.signals.server_status.emit("connected")
 
                 last_heartbeat = time.time()
@@ -105,7 +194,8 @@ class ServerListenerThread(threading.Thread):
                     except Exception:
                         pass
 
-            except Exception:
+            except Exception as e:
+                print("[Receiver] WebSocket hiba:", e)
                 self.signals.server_status.emit("disconnected")
                 time.sleep(5)
 
@@ -126,11 +216,13 @@ class ServerListenerThread(threading.Thread):
 
 
 class ReceiverWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, dark: bool):
         super().__init__()
+        self.dark = dark
         self.branding = fetch_branding()
-        app_name = self.branding.get("app_name") or "SysPing"
-        self.setWindowTitle(f"{app_name} Receiver - {MACHINE_NAME}")
+        self.app_name = self.branding.get("app_name") or "SysPing"
+
+        self.setWindowTitle(f"{self.app_name} Receiver - {MACHINE_NAME}")
         self.resize(1050, 680)
 
         self.chats = {}
@@ -168,18 +260,6 @@ class ReceiverWindow(QMainWindow):
         splitter.setSizes([280, 760])
         self.setCentralWidget(splitter)
 
-        self.setStyleSheet("""
-            QMainWindow { background: #eef2f7; }
-            QListWidget, QTextBrowser {
-                background: white;
-                border: 1px solid #d0d5dd;
-                border-radius: 10px;
-                padding: 8px;
-                font-size: 14px;
-            }
-            QLabel { font-size: 13px; font-weight: 600; }
-        """)
-
         self.setup_tray()
 
         self.reminder_timer = QTimer(self)
@@ -193,8 +273,7 @@ class ReceiverWindow(QMainWindow):
 
         self.tray_icon.setIcon(self.icon_normal)
         self.setWindowIcon(self.icon_normal)
-        app_name = self.branding.get("app_name") or "SysPing"
-        self.tray_icon.setToolTip(f"{app_name} Receiver")
+        self.tray_icon.setToolTip(f"{self.app_name} Receiver")
 
         menu = QMenu()
         open_action = QAction("Megnyitás", self)
@@ -282,7 +361,7 @@ class ReceiverWindow(QMainWindow):
                 7000,
             )
             self.restore_from_tray()
-            ImportantAlertDialog(sender, text).show_centered()
+            ImportantAlertDialog(sender, text, self.dark).show_centered()
         else:
             self.tray_icon.showMessage(
                 f"Új üzenet: {sender}",
@@ -366,31 +445,37 @@ class ReceiverWindow(QMainWindow):
 
         for msg in messages:
             badge = ""
-            bg = "#ffffff"
-            border = "#d1d5db"
+            bubble_bg = "#2b2d31" if self.dark else "#ffffff"
+            border = "#3b3f45" if self.dark else "#d1d5db"
+            meta = "#9ca3af" if self.dark else "#6b7280"
+            text_color = "#e8eaed" if self.dark else "#111827"
 
             if msg["important"]:
                 badge = (
+                    "<div style='display:inline-block; background:#7f1d1d; color:#fecaca; "
+                    "padding:4px 8px; border-radius:10px; font-size:12px; font-weight:bold; "
+                    "margin-bottom:6px;'>FONTOS</div>"
+                    if self.dark else
                     "<div style='display:inline-block; background:#fee2e2; color:#b91c1c; "
                     "padding:4px 8px; border-radius:10px; font-size:12px; font-weight:bold; "
                     "margin-bottom:6px;'>FONTOS</div>"
                 )
-                bg = "#fff7f7"
-                border = "#fca5a5"
+                bubble_bg = "#3a2323" if self.dark else "#fff7f7"
+                border = "#7f1d1d" if self.dark else "#fca5a5"
 
             html.append(f"""
                 <div style="margin-bottom:14px;">
                     {badge}
                     <div style="
-                        background:{bg};
+                        background:{bubble_bg};
                         border:1px solid {border};
                         border-radius:14px;
                         padding:10px 12px;
                     ">
-                        <div style="font-size:12px; color:#6b7280; margin-bottom:6px;">
+                        <div style="font-size:12px; color:{meta}; margin-bottom:6px;">
                             {self.escape_html(msg["sender"])} • {self.escape_html(msg["timestamp"])}
                         </div>
-                        <div style="font-size:14px; color:#111827; white-space:pre-wrap;">
+                        <div style="font-size:14px; color:{text_color}; white-space:pre-wrap;">
                             {self.escape_html(msg["text"])}
                         </div>
                     </div>
@@ -402,23 +487,21 @@ class ReceiverWindow(QMainWindow):
         self.chat_view.verticalScrollBar().setValue(self.chat_view.verticalScrollBar().maximum())
 
     def update_tray_icon(self):
-        app_name = self.branding.get("app_name") or "SysPing"
         total_unread = sum(self.unread.values())
         if total_unread > 0:
             self.tray_icon.setIcon(self.icon_unread)
             self.setWindowIcon(self.icon_unread)
-            self.tray_icon.setToolTip(f"{app_name} Receiver - {total_unread} olvasatlan")
+            self.tray_icon.setToolTip(f"{self.app_name} Receiver - {total_unread} olvasatlan")
         else:
             self.tray_icon.setIcon(self.icon_normal)
             self.setWindowIcon(self.icon_normal)
-            self.tray_icon.setToolTip(f"{app_name} Receiver")
+            self.tray_icon.setToolTip(f"{self.app_name} Receiver")
 
     def closeEvent(self, event):
         event.ignore()
         self.hide()
-        app_name = self.branding.get("app_name") or "SysPing"
         self.tray_icon.showMessage(
-            f"{app_name} Receiver",
+            f"{self.app_name} Receiver",
             "Az alkalmazás a tálcára került.",
             QSystemTrayIcon.Information,
             3000,
@@ -449,12 +532,14 @@ class ReceiverWindow(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    dark = is_dark_mode(app)
+    app.setStyleSheet(build_stylesheet(dark))
 
     if not QSystemTrayIcon.isSystemTrayAvailable():
         QMessageBox.critical(None, "Hiba", "A system tray nem érhető el.")
         sys.exit(1)
 
     app.setQuitOnLastWindowClosed(False)
-    window = ReceiverWindow()
+    window = ReceiverWindow(dark)
     window.show()
     sys.exit(app.exec())

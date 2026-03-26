@@ -8,7 +8,7 @@ import urllib.request
 from websocket import create_connection
 
 from PySide6.QtCore import QObject, Qt, Signal
-from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPixmap
+from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPalette, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QAbstractItemView,
@@ -41,6 +41,90 @@ from common import (
     load_admin_token,
     save_admin_token,
 )
+
+
+def is_dark_mode(app: QApplication) -> bool:
+    palette = app.palette()
+    window_color = palette.color(QPalette.Window)
+    return window_color.lightness() < 128
+
+
+def build_stylesheet(dark: bool) -> str:
+    if dark:
+        return """
+        QMainWindow, QWidget {
+            background: #1e1f22;
+            color: #e8eaed;
+        }
+        QListWidget, QTextBrowser, QLineEdit, QTextEdit, QTabWidget::pane {
+            background: #2b2d31;
+            color: #e8eaed;
+            border: 1px solid #3b3f45;
+            border-radius: 10px;
+            padding: 8px;
+            font-size: 14px;
+        }
+        QPushButton {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-weight: bold;
+        }
+        QPushButton:hover {
+            background: #2563eb;
+        }
+        QLabel, QCheckBox {
+            color: #e8eaed;
+            font-size: 13px;
+        }
+        QGroupBox {
+            border: 1px solid #3b3f45;
+            border-radius: 12px;
+            margin-top: 8px;
+            padding-top: 12px;
+            font-weight: bold;
+            color: #e8eaed;
+        }
+        """
+    return """
+    QMainWindow, QWidget {
+        background: #eef2f7;
+        color: #111827;
+    }
+    QListWidget, QTextBrowser, QLineEdit, QTextEdit, QTabWidget::pane {
+        background: white;
+        color: #111827;
+        border: 1px solid #d0d5dd;
+        border-radius: 10px;
+        padding: 8px;
+        font-size: 14px;
+    }
+    QPushButton {
+        background: #2563eb;
+        color: white;
+        border: none;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-weight: bold;
+    }
+    QPushButton:hover {
+        background: #1d4ed8;
+    }
+    QLabel, QCheckBox {
+        color: #111827;
+        font-size: 13px;
+    }
+    QGroupBox {
+        border: 1px solid #cfd8e3;
+        border-radius: 12px;
+        margin-top: 8px;
+        padding-top: 12px;
+        font-weight: bold;
+        color: #111827;
+    }
+    """
 
 
 def http_json(path: str, method: str = "GET", payload: dict | None = None, token: str | None = None):
@@ -81,7 +165,10 @@ class ServerListenerThread(threading.Thread):
         while self.running:
             try:
                 self.signals.server_status.emit("connecting")
-                self.ws = create_connection(f"{SERVER_WS}/{MACHINE_NAME}", timeout=30)
+                ws_url = f"{SERVER_WS}/{MACHINE_NAME}"
+                print(f"[Admin] Kapcsolódás ide: {ws_url}")
+                self.ws = create_connection(ws_url, timeout=30)
+                print("[Admin] WebSocket kapcsolat létrejött")
                 self.signals.server_status.emit("connected")
 
                 last_heartbeat = time.time()
@@ -99,7 +186,8 @@ class ServerListenerThread(threading.Thread):
                     except Exception:
                         pass
 
-            except Exception:
+            except Exception as e:
+                print("[Admin] WebSocket hiba:", e)
                 self.signals.server_status.emit("disconnected")
                 time.sleep(5)
 
@@ -120,11 +208,12 @@ class ServerListenerThread(threading.Thread):
 
 
 class LoginDialog(QDialog):
-    def __init__(self):
+    def __init__(self, dark: bool):
         super().__init__()
+        self.dark = dark
         self.branding = fetch_branding()
         self.setWindowTitle(f"{self.branding.get('app_name', 'SysPing')} Admin Login")
-        self.resize(380, 180)
+        self.resize(400, 200)
         self.token = None
         self.user = None
 
@@ -166,13 +255,15 @@ class LoginDialog(QDialog):
 
 
 class AdminChatWindow(QMainWindow):
-    def __init__(self, token: str, user_info: dict):
+    def __init__(self, token: str, user_info: dict, dark: bool):
         super().__init__()
         self.token = token
         self.user_info = user_info
+        self.dark = dark
         self.branding = fetch_branding()
+        self.app_name = self.branding.get("app_name", "SysPing")
 
-        self.setWindowTitle(f"{self.branding.get('app_name', 'SysPing')} Admin - {user_info['username']} - {MACHINE_NAME}")
+        self.setWindowTitle(f"{self.app_name} Admin - {user_info['username']} - {MACHINE_NAME}")
         self.resize(1500, 850)
 
         self.devices = []
@@ -219,34 +310,6 @@ class AdminChatWindow(QMainWindow):
         root_layout.addWidget(self.tabs)
         self.setCentralWidget(root)
 
-        self.setStyleSheet("""
-            QMainWindow { background: #eef2f7; }
-            QListWidget, QTextBrowser, QLineEdit, QTextEdit, QTabWidget::pane {
-                background: white;
-                border: 1px solid #d0d5dd;
-                border-radius: 10px;
-                padding: 8px;
-                font-size: 14px;
-            }
-            QPushButton {
-                background: #2563eb;
-                color: white;
-                border: none;
-                border-radius: 10px;
-                padding: 10px 14px;
-                font-weight: bold;
-            }
-            QPushButton:hover { background: #1d4ed8; }
-            QLabel, QCheckBox { font-size: 13px; }
-            QGroupBox {
-                font-weight: 700;
-                border: 1px solid #cfd8e3;
-                border-radius: 12px;
-                margin-top: 8px;
-                padding-top: 12px;
-            }
-        """)
-
         self.setWindowIcon(self.create_icon())
 
     def build_chat_tab(self):
@@ -286,7 +349,19 @@ class AdminChatWindow(QMainWindow):
 
         self.delete_device_btn = QPushButton("Eszköz archiválása")
         self.delete_device_btn.clicked.connect(self.archive_selected_device)
-        self.delete_device_btn.setStyleSheet("background:#dc2626; color:white; border:none; border-radius:10px; padding:10px 14px; font-weight:bold;")
+        self.delete_device_btn.setStyleSheet("""
+            QPushButton {
+                background:#dc2626;
+                color:white;
+                border:none;
+                border-radius:10px;
+                padding:10px 14px;
+                font-weight:bold;
+            }
+            QPushButton:hover {
+                background:#b91c1c;
+            }
+        """)
 
         left_box = QGroupBox("Chat-ek")
         left_layout = QVBoxLayout(left_box)
@@ -488,12 +563,27 @@ class AdminChatWindow(QMainWindow):
 
         for msg in messages:
             align = "left" if msg["direction"] == "in" else "right"
-            bg = "#ffffff" if msg["direction"] == "in" else "#dbeafe"
-            border = "#d1d5db" if msg["direction"] == "in" else "#93c5fd"
+            bg = "#2b2d31" if self.dark and msg["direction"] == "in" else "#ffffff"
+            if msg["direction"] == "out":
+                bg = "#1d4ed8" if self.dark else "#dbeafe"
+
+            border = "#3b3f45" if self.dark and msg["direction"] == "in" else "#d1d5db"
+            if msg["direction"] == "out":
+                border = "#2563eb" if self.dark else "#93c5fd"
+
+            text_color = "#e8eaed" if self.dark else "#111827"
+            if msg["direction"] == "out":
+                text_color = "#ffffff" if self.dark else "#111827"
+
+            meta = "#9ca3af" if self.dark else "#6b7280"
 
             badge = ""
             if msg["important"]:
                 badge = (
+                    "<div style='display:inline-block; background:#7f1d1d; color:#fecaca; "
+                    "padding:4px 8px; border-radius:10px; font-size:12px; font-weight:bold; "
+                    "margin-bottom:6px;'>FONTOS</div>"
+                    if self.dark else
                     "<div style='display:inline-block; background:#fee2e2; color:#b91c1c; "
                     "padding:4px 8px; border-radius:10px; font-size:12px; font-weight:bold; "
                     "margin-bottom:6px;'>FONTOS</div>"
@@ -510,10 +600,10 @@ class AdminChatWindow(QMainWindow):
                         border:1px solid {border};
                         border-radius:14px;
                         padding:10px 12px;">
-                        <div style="font-size:12px; color:#6b7280; margin-bottom:6px;">
+                        <div style="font-size:12px; color:{meta}; margin-bottom:6px;">
                             {self.escape_html(msg["sender"])} • {self.escape_html(msg["timestamp"])}
                         </div>
-                        <div style="font-size:14px; color:#111827; white-space:pre-wrap;">
+                        <div style="font-size:14px; color:{text_color}; white-space:pre-wrap;">
                             {self.escape_html(msg["text"])}
                         </div>
                     </div>
@@ -658,8 +748,8 @@ class AdminChatWindow(QMainWindow):
             self.settings_primary_color.setText(settings.get("primary_color", ""))
             self.settings_secondary_color.setText(settings.get("secondary_color", ""))
             self.settings_web_admin_enabled.setChecked(settings.get("web_admin_enabled", False))
-        except Exception:
-            pass
+        except Exception as e:
+            print("[Admin] Settings betöltési hiba:", e)
 
     def save_settings(self):
         try:
@@ -705,22 +795,24 @@ class AdminChatWindow(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    dark = is_dark_mode(app)
+    app.setStyleSheet(build_stylesheet(dark))
 
     token, user = load_admin_token()
 
     if token and user:
         try:
             http_json("/auth/me", method="GET", token=token)
-            window = AdminChatWindow(token, user)
+            window = AdminChatWindow(token, user, dark)
             window.show()
             sys.exit(app.exec())
         except Exception:
             clear_admin_token()
 
-    login = LoginDialog()
+    login = LoginDialog(dark)
     if login.exec() != QDialog.Accepted:
         sys.exit(0)
 
-    window = AdminChatWindow(login.token, login.user)
+    window = AdminChatWindow(login.token, login.user, dark)
     window.show()
     sys.exit(app.exec())
